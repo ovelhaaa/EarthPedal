@@ -7,12 +7,29 @@
 #include "dsp/filters/OnePoleFilters.hpp"
 #include "dsp/modulation/LFO.hpp"
 #include <array>
+#include <algorithm>
+#include <cmath>
+
+struct DattorroTankBuffers {
+    float* leftApf1; size_t leftApf1Size;
+    float* leftDelay1; size_t leftDelay1Size;
+    float* leftApf2; size_t leftApf2Size;
+    float* leftDelay2; size_t leftDelay2Size;
+
+    float* rightApf1; size_t rightApf1Size;
+    float* rightDelay1; size_t rightDelay1Size;
+    float* rightApf2; size_t rightApf2Size;
+    float* rightDelay2; size_t rightDelay2Size;
+};
 
 class Dattorro1997Tank {
 public:
     Dattorro1997Tank(const float initMaxSampleRate = 32000.0,
                      const float initMaxLfoDepth = 0.0,
                      const float initMaxTimeScale = 1.0);
+
+    // New Init method
+    void Init(const DattorroTankBuffers& buffers);
 
     void process(const float leftInput, const float rightIn,
                  float* leftOut, float* rightOut);
@@ -159,11 +176,24 @@ public:
     void rescaleTapTimes();
 };
 
+struct DattorroBuffers {
+    float* preDelay; size_t preDelaySize;
+    float* inApf1; size_t inApf1Size;
+    float* inApf2; size_t inApf2Size;
+    float* inApf3; size_t inApf3Size;
+    float* inApf4; size_t inApf4Size;
+    DattorroTankBuffers tankBuffers;
+};
+
 class Dattorro {
 public:
     Dattorro(const float initMaxSampleRate = 32000.0,
              const float initMaxLfoDepth = 16.0,
              const float initMaxTimeScale = 1.0);
+
+    // New Init
+    void Init(const DattorroBuffers& buffers);
+
     void process(float leftInput, float rightInput);
     void clear();
 
@@ -233,4 +263,3 @@ public:
 
     float dattorroScale(float delayTime);
 };
-

@@ -2,12 +2,10 @@
 
 #include <array>
 #include <span>
-
-#include <q/utility/ring_buffer.hpp>
+#include "RingBuffer.h"
 
 constexpr size_t resample_factor = 6;
-//constexpr size_t resample_factor = 1; // KAB Note: redefining as 1 to get around DaisySeedProjects effects being set up to process every sample, not every block
-                                      // Not sure what this will do TODO
+
 //=============================================================================
 class Decimator2
 {
@@ -30,9 +28,6 @@ public:
 private:
     float filter1()
     {
-        // 48000 Hz sample rate
-        // 0-1800 Hz pass band (3 dB ripple)
-        // 8000-24000 Hz stop band (-80 dB)
         return
             0.000066177472224418f * (buffer1[offset1+0] + buffer1[offset1+20]) +
             0.0009613901552378511f * (buffer1[offset1+1] + buffer1[offset1+19]) +
@@ -49,9 +44,6 @@ private:
 
     float filter2()
     {
-        // Half-band filter
-        // 16000 Hz sample rate
-        // 0-1800 Hz pass band
         return
             -0.00299995f * (buffer2[offset2+0] + buffer2[offset2+14]) +
             0.01858487f * (buffer2[offset2+2] + buffer2[offset2+12]) +
@@ -68,8 +60,8 @@ private:
     static constexpr std::size_t fsize2 = 15;
     static constexpr std::size_t offset2 = bsize2 - fsize2;
 
-    cycfi::q::ring_buffer<float> buffer1{bsize1};
-    cycfi::q::ring_buffer<float> buffer2{bsize2};
+    RingBuffer<float> buffer1{bsize1};
+    RingBuffer<float> buffer2{bsize2};
 };
 
 
@@ -97,12 +89,6 @@ public:
     }
 
 private:
-    // Filter 1
-    // 16000 Hz sample rate
-    // 0-3600 Hz pass band (3 dB ripple)
-    // 4400-8000 Hz stop band (-80 dB)
-    // Gain=2 in passband
-
     float filter1a()
     {
         return
@@ -137,12 +123,6 @@ private:
             -0.2033122562119347f * (buffer1[offset1+10] + buffer1[offset1+13]) +
             0.6336728217960803f * (buffer1[offset1+11] + buffer1[offset1+12]);
     }
-
-    // Filter 2
-    // 48000 Hz sample rate
-    // 0-3600 Hz pass band (3 dB ripple)
-    // 8000-24000 Hz stop band (-80 dB)
-    // Gain=3 in passband
 
     float filter2a()
     {
@@ -195,6 +175,6 @@ private:
     static constexpr std::size_t fsize2 = 11;
     static constexpr std::size_t offset2 = bsize2 - fsize2;
 
-    cycfi::q::ring_buffer<float> buffer1{bsize1};
-    cycfi::q::ring_buffer<float> buffer2{bsize2};
+    RingBuffer<float> buffer1{bsize1};
+    RingBuffer<float> buffer2{bsize2};
 };

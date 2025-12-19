@@ -1,8 +1,8 @@
 #pragma once
 
 #include "BandShifter.h"
-
-#include <gcem.hpp>
+#include <vector>
+#include <cmath>
 
 //=============================================================================
 class OctaveGenerator
@@ -49,12 +49,12 @@ public:
     }
 
 private:
-    static constexpr float centerFreq(const int n)
+    static float centerFreq(const int n)
     {
-        return 480 * gcem::pow(2.0f, (0.027f * n)) - 420;
+        return 480 * std::pow(2.0f, (0.027f * n)) - 420;
     }
 
-    static constexpr float bandwidth(const int n)
+    static float bandwidth(const int n)
     {
         const float f0 = centerFreq(n-1);
         const float f1 = centerFreq(n);

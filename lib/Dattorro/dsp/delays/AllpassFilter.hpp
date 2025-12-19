@@ -4,22 +4,13 @@
 class AllpassFilter {
 public:
     AllpassFilter() {
-        //clear();
         gain = 0.;
     }
 
-    AllpassFilter(int maxDelay, int initDelay = 0, float gain = 0.) {
-        //clear();
-        delay = InterpDelay(maxDelay, initDelay);
-        this->gain = gain;
+    void Init(float* buffer, size_t size) {
+        delay.Init(buffer, size);
+        clear();
     }
-
-    // inline void initializeAllPassFilter(const int &maxDelay, const float &initDelay = 0, const float &gain = 0.) {
-    //     clear();
-    //     // delay = InterpDelay(maxDelay, initDelay);
-    //     delay.initializeDelay(maxDelay, initDelay);
-    //     this->gain = gain;
-    // }
 
     #pragma GCC push_options
     #pragma GCC optimize ("Ofast")
@@ -44,6 +35,11 @@ public:
 
     inline void setGain(const float &newGain) {
         gain = newGain;
+    }
+
+    // Pass through for delay time setting
+    void setDelayTime(float time) {
+        delay.setDelayTime(time);
     }
 
     float input;

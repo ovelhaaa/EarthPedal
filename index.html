@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EarthPedal Control</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; }
+        .control { margin: 15px 0; }
+        label { display: inline-block; width: 120px; }
+        input[type=range] { width: 300px; }
+        .val { display: inline-block; width: 50px; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>EarthPedal Control</h1>
+    <p>Status: <span id="status">Disconnected</span></p>
+    <button onclick="connectMidi()">Connect MIDI</button>
+
+    <div class="control">
+        <label>Predelay</label>
+        <input type="range" min="0" max="127" id="cc14" oninput="sendCC(14, this.value)">
+        <span class="val" id="val14">0</span>
+    </div>
+    <div class="control">
+        <label>Mix</label>
+        <input type="range" min="0" max="127" id="cc15" oninput="sendCC(15, this.value)">
+        <span class="val" id="val15">0</span>
+    </div>
+    <div class="control">
+        <label>Decay</label>
+        <input type="range" min="0" max="127" id="cc16" oninput="sendCC(16, this.value)">
+        <span class="val" id="val16">0</span>
+    </div>
+    <div class="control">
+        <label>Mod Depth</label>
+        <input type="range" min="0" max="127" id="cc17" oninput="sendCC(17, this.value)">
+        <span class="val" id="val17">0</span>
+    </div>
+    <div class="control">
+        <label>Mod Speed</label>
+        <input type="range" min="0" max="127" id="cc18" oninput="sendCC(18, this.value)">
+        <span class="val" id="val18">0</span>
+    </div>
+    <div class="control">
+        <label>Damping</label>
+        <input type="range" min="0" max="127" id="cc19" oninput="sendCC(19, this.value)">
+        <span class="val" id="val19">0</span>
+    </div>
+    <div class="control">
+        <label>Octave Mode</label>
+        <select id="cc20" onchange="sendCC(20, this.value)">
+            <option value="0">Dry (Off)</option>
+            <option value="1">Up</option>
+            <option value="2">Down</option>
+            <option value="3">Both</option>
+        </select>
+    </div>
+
+    <script>
+        let midiOutput = null;
+
+        function connectMidi() {
+            if (navigator.requestMIDIAccess) {
+                navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+            } else {
+                alert("WebMIDI is not supported in this browser.");
+            }
+        }
+
+        function onMIDISuccess(midiAccess) {
+            document.getElementById("status").innerText = "MIDI Ready";
+            const outputs = midiAccess.outputs.values();
+            for (let output of outputs) {
+                // Select the first output found, or logic to select specific device
+                midiOutput = output;
+                document.getElementById("status").innerText = "Connected to " + output.name;
+                break;
+            }
+            if (!midiOutput) {
+                 document.getElementById("status").innerText = "No MIDI Output found";
+            }
+        }
+
+        function onMIDIFailure() {
+            document.getElementById("status").innerText = "Could not access MIDI devices.";
+        }
+
+        function sendCC(cc, value) {
+            if (midiOutput) {
+                midiOutput.send([0xB0, cc, value]); // Channel 1, CC, Value
+            }
+            if(document.getElementById("val" + cc))
+                document.getElementById("val" + cc).innerText = value;
+        }
+    </script>
+</body>
+</html>
