@@ -215,6 +215,13 @@
 
         <!-- Switches -->
         <div class="control-group">
+            <label for="audioSource">Source</label>
+            <select id="audioSource">
+                <option value="mic" selected>Real-time Mic</option>
+                <option value="file">File Player</option>
+            </select>
+        </div>
+        <div class="control-group">
             <label for="reverbSize">Size</label>
             <select id="reverbSize">
                 <option value="0">Small</option>
@@ -236,6 +243,15 @@
                 <option value="0" selected>On</option>
                 <option value="1">Off</option>
             </select>
+        </div>
+    </div>
+
+    <div id="file-player-controls" class="control-group" style="display: none; margin-top: 20px;">
+        <label for="audioFile">Upload Sample</label>
+        <input type="file" id="audioFile" accept="audio/*" style="margin-bottom: 10px; font-family: inherit;">
+        <div style="display: flex; gap: 10px; width: 100%; justify-content: center;">
+            <button id="playFileBtn" style="padding: 5px 15px; cursor: pointer; background: #27ae60; border: none; border-radius: 4px; color: white;">Play</button>
+            <button id="stopFileBtn" style="padding: 5px 15px; cursor: pointer; background: #c0392b; border: none; border-radius: 4px; color: white;">Stop</button>
         </div>
     </div>
 
