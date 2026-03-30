@@ -7,13 +7,7 @@
 
 #include "Dattorro/Dattorro.hpp"
 
-#include <q/support/literals.hpp>
-#include <q/fx/biquad.hpp>
-#include "Util/Multirate.h"
-#include "Util/OctaveGenerator.h"
-namespace q = cycfi::q;
-using namespace q::literals;
-
+#include "poly_octave/poly_octaver.h"
 using namespace daisy;
 using namespace daisysp;
 using namespace funbox; 
@@ -55,15 +49,7 @@ bool fw2_held = false;
 bool effect_on_momentary = false;
 bool freeze = false;
 
-static Decimator2 decimate;
-static Interpolator interpolate;
-static const auto sample_rate_temp = 48000; //hard code for now                          // NOTE: the sample_rate must be divisible by the resample_factor (48/6 = 8)
-static OctaveGenerator octave(sample_rate_temp / resample_factor); // resample_factor is defined in Multirate.h and equals 6
-static q::highshelf eq1(-11, 140_Hz, sample_rate_temp);
-static q::lowshelf eq2(5, 160_Hz, sample_rate_temp);
-float buff[6];
-float buff_out[6];
-int bin_counter = 0;
+static poly_octave::PolyOctaver poly_octaver;
 
 float current_predelay, current_moddepth, current_modspeed, current_ODswell, current_freezeDecay;
 
@@ -470,53 +456,15 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
             inputL = inputR = in[0][i];
  
             // NOTE: Octave before reverb sounds better (personal preference), and doing octave after reverb would require another polyoctave for second channel anyway
-            buff[bin_counter] = inputL;
-            // do calculation every 6 samples
-            if (bin_counter > 4) {
+            poly_octaver.SetMode(static_cast<poly_octave::PolyOctaver::Mode>(effect_mode));
+            poly_octaver.SetInternalDryEnabled(!dipValues[1] || effect_mode == 2);
 
-                std::span<const float, resample_factor> in_chunk(&(buff[0]), resample_factor);  // std::span is c++ 20 feature
-                    
-                const auto sample = decimate(in_chunk); 
-
-                float octave_mix = 0.0;
-                octave.update(sample);
-
-                if (effect_mode != 0)
-                    octave_mix += octave.up1() * 2.0;
-                if (effect_mode == 2) {
-                    octave_mix += octave.down1() * 2.0;
-                    octave_mix += octave.down2() * 2.0;
-                }
-
-                auto out_chunk = interpolate(octave_mix);
-                for (size_t j = 0; j < out_chunk.size(); ++j)
-                {
-                    float mix = eq2(eq1(out_chunk[j]));
-
-                    const auto dry_signal = buff[j];
-                    // TODO Add dipswitch to enable octave out only when activated (currently mixing normal signal in)
-                    float dryLevel = 0.5;
-                    if (!dipValues[1] || effect_mode == 2) // Dont add in dry mix if dip3 switch is on, but always add if in effect mode 2 (momentary octave)
-                        mix += dryLevel * buff[j];
-                    if (effect_mode != 0)
-                        buff_out[j] = mix;
-                    else 
-                        buff_out[j] = 0.0;
-                }
-
-            }
-                // Sets increments the buffer index from 0 to 5 (workaround to adapt code)
-            bin_counter += 1;
-            if (bin_counter > 5)
-                bin_counter = 0;
-
-
+            const float octave_sample = poly_octaver.ProcessMono(inputL);
             float reverb_in = inputL;
 
             if (effect_mode != 0 ) { // Up oct or down oct
                 if ((footswitch_mode == 2 && effect_on_momentary) || (footswitch_mode != 2)) {
-                    //reverb_in = inputL + upOct;
-                    reverb_in = buff_out[bin_counter]; // This adds 6 samples of latency to the octave sound
+                    reverb_in = octave_sample; // This adds 6 samples of latency to the octave sound
                 }
 
             }
@@ -656,11 +604,8 @@ int main(void)
     reverb.setTankModShape(0.5); // <-- currently not controllable, maybe use dipswitch for different shape
     reverb.clear();
 
-    // Initialize buffers for polyoctave to 0
-    for (int j = 0; j < 6; ++j) {
-        buff[j] = 0.0;
-        buff_out[j] = 0.0;
-    }
+    poly_octaver.Init(samplerate);
+    poly_octaver.SetMode(poly_octave::PolyOctaver::Mode::Off);
 
     overdrive.Init();
     overdrive.SetDrive(0.4);

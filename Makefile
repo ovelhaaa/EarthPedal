@@ -16,6 +16,7 @@ CPP_SOURCES = earth.cpp
 CPP_SOURCES += Dattorro/dsp/filters/OnePoleFilters.cpp
 CPP_SOURCES += Dattorro/dsp/delays/InterpDelay.cpp
 CPP_SOURCES += Dattorro/Dattorro.cpp
+CPP_SOURCES += poly_octave/poly_octaver.cpp
 
 # Library Locations
 LIBDAISY_DIR = ../../libDaisy
