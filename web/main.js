@@ -1,10 +1,98 @@
 let audioCtx;
 let earthNode;
-let sourceNode;
+let micSourceNode;
 let stream;
+let audioBuffer;
+let fileSourceNode;
 
 const startButton = document.getElementById('start-audio');
 const statusText = document.getElementById('status-text');
+
+const audioSourceSelect = document.getElementById('audioSource');
+const filePlayerControls = document.getElementById('file-player-controls');
+const audioFileInput = document.getElementById('audioFile');
+const playFileBtn = document.getElementById('playFileBtn');
+const stopFileBtn = document.getElementById('stopFileBtn');
+
+// Handle Source Switching
+audioSourceSelect.addEventListener('change', (e) => {
+    const mode = e.target.value;
+
+    // Stop and disconnect file source if playing
+    if (fileSourceNode) {
+        try { fileSourceNode.stop(); } catch (err) {}
+        fileSourceNode.disconnect();
+        fileSourceNode = null;
+    }
+
+    if (mode === 'mic') {
+        filePlayerControls.style.display = 'none';
+        if (micSourceNode && earthNode) {
+            try { micSourceNode.connect(earthNode); } catch (err) {}
+            statusText.textContent = "Mic input active.";
+        }
+    } else {
+        filePlayerControls.style.display = 'block';
+        if (micSourceNode) {
+            try { micSourceNode.disconnect(); } catch (err) {}
+        }
+        statusText.textContent = "File player active. Upload and play a file.";
+    }
+});
+
+// Handle File Upload
+audioFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!audioCtx) {
+        statusText.textContent = "Please Start Audio first.";
+        return;
+    }
+
+    try {
+        statusText.textContent = "Loading file...";
+        const arrayBuffer = await file.arrayBuffer();
+        statusText.textContent = "Decoding audio...";
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        statusText.textContent = "File ready to play.";
+    } catch (err) {
+        console.error("Error decoding audio file:", err);
+        statusText.textContent = "Error decoding file.";
+    }
+});
+
+function playFile() {
+    if (!audioCtx || !audioBuffer || !earthNode) return;
+
+    if (fileSourceNode) {
+        try { fileSourceNode.stop(); } catch (err) {}
+        fileSourceNode.disconnect();
+    }
+
+    fileSourceNode = audioCtx.createBufferSource();
+    fileSourceNode.buffer = audioBuffer;
+    fileSourceNode.loop = true;
+
+    fileSourceNode.connect(earthNode);
+    fileSourceNode.start();
+    statusText.textContent = "Playing file...";
+}
+
+playFileBtn.addEventListener('click', () => {
+    if (audioSourceSelect.value === 'file') {
+        playFile();
+    }
+});
+
+stopFileBtn.addEventListener('click', () => {
+    if (fileSourceNode) {
+        try { fileSourceNode.stop(); } catch (err) {}
+        fileSourceNode.disconnect();
+        fileSourceNode = null;
+        statusText.textContent = "Playback stopped.";
+    }
+});
 
 // Define UI element mappings to Worklet Parameters
 const paramMappings = [
@@ -67,9 +155,12 @@ async function initAudio() {
             wasmBytes: wasmBytes
         });
 
-        // Connect the audio graph
-        sourceNode = audioCtx.createMediaStreamSource(stream);
-        sourceNode.connect(earthNode);
+        // Setup Mic Input but don't connect immediately if not selected
+        micSourceNode = audioCtx.createMediaStreamSource(stream);
+
+        if (audioSourceSelect.value === 'mic') {
+            micSourceNode.connect(earthNode);
+        }
         earthNode.connect(audioCtx.destination);
 
     } catch (err) {
