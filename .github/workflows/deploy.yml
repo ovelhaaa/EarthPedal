@@ -29,9 +29,9 @@ jobs:
           git clone https://github.com/kthohr/gcem.git deps/gcem
           git clone https://github.com/cycfi/infra.git deps/infra
 
-      - name: Compile WASM
+      - 
+            - name: Compile WASM
         run: |
-          # Criando a pasta de saída se não existir
           mkdir -p web
           
           emcc -O3 \
@@ -53,9 +53,8 @@ jobs:
             Dattorro/dsp/filters/OnePoleFilters.cpp \
             Dattorro/dsp/delays/InterpDelay.cpp \
             Dattorro/Dattorro.cpp \
-            Util/Multirate.cpp \
-            Util/OctaveGenerator.cpp \
             -o web/earth-module.js
+
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
