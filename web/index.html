@@ -5,10 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Earth Pedal Wasm</title>
     <style>
+        :root {
+            --bg-vacuum: #0a0b0e;
+            --bg-panel: #11151c;
+            --bg-panel-inset: #0d1015;
+            --border-steel: #2a313d;
+            --border-highlight: #3a4556;
+            --text-main: #e2e8f0;
+            --text-dim: #64748b;
+            --glow-earth: #0ea5e9;
+            --glow-earth-dim: rgba(14, 165, 233, 0.2);
+            --glow-earth-strong: rgba(14, 165, 233, 0.6);
+            --accent-cyan: #38bdf8;
+            --accent-alert: #ef4444;
+            --accent-success: #10b981;
+
+            --font-mono: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Courier New', Courier, monospace;
-            background-color: #1a1a1a;
-            color: #eeeeee;
+            font-family: var(--font-mono);
+            background-color: var(--bg-vacuum);
+            background-image:
+                radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.02) 0%, transparent 40%);
+            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -17,248 +43,696 @@
             padding: 20px;
         }
 
-        #pedal-container {
-            background-color: #2c3e50;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1);
+        #pedal-wrapper {
+            position: relative;
+            padding: 2px;
+            background: linear-gradient(180deg, var(--border-highlight) 0%, var(--border-steel) 100%);
+            border-radius: 12px;
+            box-shadow:
+                0 20px 40px rgba(0,0,0,0.8),
+                0 0 100px rgba(14, 165, 233, 0.05);
             width: 100%;
-            max-width: 600px;
-            border: 2px solid #34495e;
+            max-width: 800px;
+        }
+
+        #pedal-container {
+            background-color: var(--bg-panel);
+            background-image: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+            border-radius: 10px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle Earth horizon accent at the top */
+        #pedal-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: radial-gradient(ellipse at 50% -100px, var(--glow-earth-dim) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
 
         h1 {
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 30px;
-            color: #ecf0f1;
+            font-family: var(--font-sans);
+            margin: 0;
+            color: #ffffff;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 2px solid #34495e;
-            padding-bottom: 10px;
+            letter-spacing: 6px;
+            font-weight: 300;
+            font-size: 1.8rem;
+            text-shadow: 0 0 20px var(--glow-earth-strong);
         }
 
+        .subtitle {
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        /* Layout Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sections */
+        .panel-section {
+            background: var(--bg-panel-inset);
+            border: 1px solid var(--border-steel);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .section-label {
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--bg-panel);
+            padding: 0 8px;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid var(--border-steel);
+            border-radius: 4px;
+        }
+
+        /* Power & Status Section */
+        .power-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-steel);
+            border-radius: 8px;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .power-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .power-switch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .power-btn {
+            background: #1e2430;
+            border: 2px solid var(--border-steel);
+            color: var(--text-dim);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow:
+                inset 0 2px 5px rgba(255,255,255,0.05),
+                0 5px 10px rgba(0,0,0,0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .power-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.1) 0%, transparent 60%);
+            border-radius: 50%;
+        }
+
+        .power-btn:hover {
+            border-color: var(--border-highlight);
+            color: var(--text-main);
+        }
+
+        .power-btn:active {
+            transform: scale(0.95);
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.8);
+        }
+
+        .power-btn.active {
+            border-color: var(--accent-cyan);
+            color: #fff;
+            box-shadow:
+                inset 0 2px 5px rgba(255,255,255,0.2),
+                0 0 20px var(--glow-earth-dim);
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+
+        .status-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+            transition: all 0.3s ease;
+        }
+
+        .status-led.ready { background: var(--accent-success); box-shadow: 0 0 10px var(--accent-success); }
+        .status-led.running { background: var(--glow-earth); box-shadow: 0 0 12px var(--glow-earth); animation: pulse 2s infinite; }
+        .status-led.error { background: var(--accent-alert); box-shadow: 0 0 10px var(--accent-alert); }
+        .status-led.initializing { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: blink 0.5s infinite; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 8px var(--glow-earth), inset 0 0 2px rgba(255,255,255,0.5); opacity: 0.8; }
+            50% { box-shadow: 0 0 16px var(--glow-earth), inset 0 0 5px rgba(255,255,255,0.8); opacity: 1; }
+            100% { box-shadow: 0 0 8px var(--glow-earth), inset 0 0 2px rgba(255,255,255,0.5); opacity: 0.8; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .status-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 180px;
+            text-align: right;
+        }
+
+        /* Controls Area */
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
-            margin-bottom: 30px;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: rgba(0,0,0,0.2);
-            padding: 15px 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
         }
 
         label {
-            font-size: 0.85rem;
-            margin-bottom: 10px;
+            font-size: 0.7rem;
+            margin-bottom: 12px;
             text-transform: uppercase;
-            font-weight: bold;
-            color: #bdc3c7;
+            letter-spacing: 1px;
+            color: var(--text-dim);
             text-align: center;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
+        /* Sliders */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
             background: transparent;
+            margin: 10px 0;
         }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: #e74c3c;
-            cursor: pointer;
-            margin-top: -8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        input[type="range"]:focus {
+            outline: none;
         }
 
         input[type="range"]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: #7f8c8d;
+            background: var(--bg-vacuum);
             border-radius: 2px;
+            border: 1px solid var(--border-steel);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
         }
 
-        select {
-            width: 100%;
-            padding: 8px;
-            background-color: #34495e;
-            color: #ecf0f1;
-            border: 1px solid #7f8c8d;
-            border-radius: 4px;
-            font-family: inherit;
-            cursor: pointer;
-            outline: none;
-        }
-
-        select:focus {
-            border-color: #e74c3c;
-        }
-
-        .power-section {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            border-top: 2px solid #34495e;
-            padding-top: 30px;
-        }
-
-        #start-audio {
-            background-color: #c0392b;
-            color: white;
-            border: none;
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
             border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            font-size: 1rem;
-            font-weight: bold;
+            background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+            border: 2px solid var(--border-highlight);
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3);
-            text-transform: uppercase;
-            transition: all 0.1s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            line-height: 1.2;
+            margin-top: -8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            transition: border-color 0.2s;
         }
 
-        #start-audio:hover {
-            background-color: #e74c3c;
+        input[type="range"]::-webkit-slider-thumb:hover {
+            border-color: var(--accent-cyan);
         }
 
-        #start-audio:active {
-            transform: translateY(4px);
-            box-shadow: 0 0px 2px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        #start-audio.active {
-            background-color: #27ae60;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3), 0 0 15px rgba(46, 204, 113, 0.6);
-        }
-
-        .status {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 0.9rem;
-            color: #95a5a6;
+        input[type="range"]::-webkit-slider-thumb:active {
+            background: var(--glow-earth);
+            border-color: #fff;
         }
 
         .val-display {
-            font-size: 0.75rem;
-            color: #95a5a6;
+            font-size: 0.65rem;
+            color: var(--accent-cyan);
             margin-top: 8px;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border-steel);
+            min-width: 50px;
+            text-align: center;
         }
+
+        /* Selects */
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background-color: var(--bg-vacuum);
+            color: var(--text-main);
+            border: 1px solid var(--border-steel);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+
+        select:hover {
+            border-color: var(--border-highlight);
+        }
+
+        select:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 5px var(--glow-earth-dim);
+        }
+
+        /* Source & Transport Section */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .source-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .source-toggle {
+            display: flex;
+            background: var(--bg-vacuum);
+            border-radius: 6px;
+            border: 1px solid var(--border-steel);
+            overflow: hidden;
+        }
+
+        .source-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 10px 0;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .source-btn.active {
+            background: var(--border-steel);
+            color: var(--text-main);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .source-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.02);
+            color: #fff;
+        }
+
+        /* File Transport */
+        .transport-panel {
+            display: none; /* hidden by default */
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .transport-panel.active {
+            display: flex;
+        }
+
+        .file-upload {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .file-upload-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-vacuum);
+            border: 1px dashed var(--border-highlight);
+            border-radius: 4px;
+            color: var(--text-dim);
+            text-align: center;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .file-upload:hover .file-upload-btn {
+            border-color: var(--accent-cyan);
+            color: var(--text-main);
+            background: rgba(14, 165, 233, 0.05);
+        }
+
+        .transport-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .t-btn {
+            background: var(--bg-vacuum);
+            border: 1px solid var(--border-steel);
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.05);
+        }
+
+        .t-btn:hover:not(:disabled) {
+            border-color: var(--border-highlight);
+            background: var(--border-steel);
+        }
+
+        .t-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .t-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .t-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .t-btn.play.active { color: var(--accent-success); border-color: var(--accent-success); }
+        .t-btn.pause.active { color: #f59e0b; border-color: #f59e0b; }
+
+        .progress-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-vacuum);
+            border-radius: 3px;
+            border: 1px solid var(--border-steel);
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--glow-earth);
+            width: 0%;
+            box-shadow: 0 0 10px var(--glow-earth-strong);
+            transition: width 0.1s linear;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        /* Overlay for disabled state */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 11, 14, 0.7);
+            backdrop-filter: blur(2px);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            opacity: 1;
+            pointer-events: all;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay-text {
+            color: var(--accent-cyan);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 4px;
+            border: 1px solid var(--border-steel);
+        }
+
+        /* Select hidden native element */
+        #audioSource { display: none; }
+
     </style>
 </head>
 <body>
 
-<div id="pedal-container">
-    <h1>Earth Reverb Wasm</h1>
-
-    <div class="controls-grid">
-        <!-- Sliders -->
-        <div class="control-group">
-            <label for="mix">Mix</label>
-            <input type="range" id="mix" min="0" max="1" step="0.01" value="0.5">
-            <span class="val-display" id="mix-val">0.50</span>
-        </div>
-        <div class="control-group">
-            <label for="decay">Decay</label>
-            <input type="range" id="decay" min="0" max="1" step="0.01" value="0.5">
-            <span class="val-display" id="decay-val">0.50</span>
-        </div>
-        <div class="control-group">
-            <label for="preDelay">Pre-Delay</label>
-            <input type="range" id="preDelay" min="0" max="1" step="0.01" value="0.0">
-            <span class="val-display" id="preDelay-val">0.00</span>
-        </div>
-        <div class="control-group">
-            <label for="filter">Filter</label>
-            <input type="range" id="filter" min="0" max="1" step="0.01" value="0.5">
-            <span class="val-display" id="filter-val">0.50</span>
-        </div>
-        <div class="control-group">
-            <label for="modDepth">Mod Depth</label>
-            <input type="range" id="modDepth" min="0" max="1" step="0.01" value="0.5">
-            <span class="val-display" id="modDepth-val">0.50</span>
-        </div>
-        <div class="control-group">
-            <label for="modSpeed">Mod Speed</label>
-            <input type="range" id="modSpeed" min="0" max="1" step="0.01" value="0.5">
-            <span class="val-display" id="modSpeed-val">0.50</span>
-        </div>
-        <div class="control-group">
-            <label for="eq1Gain">EQ 1 (Hi)</label>
-            <input type="range" id="eq1Gain" min="-24" max="24" step="0.1" value="-11">
-            <span class="val-display" id="eq1Gain-val">-11.0 dB</span>
-        </div>
-        <div class="control-group">
-            <label for="eq2Gain">EQ 2 (Lo)</label>
-            <input type="range" id="eq2Gain" min="-24" max="24" step="0.1" value="5">
-            <span class="val-display" id="eq2Gain-val">5.0 dB</span>
+<div id="pedal-wrapper">
+    <div id="pedal-container">
+        <div class="header">
+            <h1>Earth</h1>
+            <div class="subtitle">Orbital DSP Engine</div>
         </div>
 
-        <!-- Switches -->
-        <div class="control-group">
-            <label for="audioSource">Source</label>
-            <select id="audioSource">
-                <option value="mic" selected>Real-time Mic</option>
-                <option value="file">File Player</option>
-            </select>
+        <div class="power-panel">
+            <div class="power-controls">
+                <div class="power-switch-container">
+                    <button id="start-audio" class="power-btn">PWR</button>
+                </div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-text" id="status-text">OFFLINE</div>
+                <div class="status-led" id="status-led"></div>
+            </div>
         </div>
-        <div class="control-group">
-            <label for="reverbSize">Size</label>
-            <select id="reverbSize">
-                <option value="0">Small</option>
-                <option value="1" selected>Medium</option>
-                <option value="2">Big</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label for="octaveMode">Octave</label>
-            <select id="octaveMode">
-                <option value="0" selected>None</option>
-                <option value="1">Up</option>
-                <option value="2">Up + Down</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label for="disableInputDiffusion">Input Diff</label>
-            <select id="disableInputDiffusion">
-                <option value="0" selected>On</option>
-                <option value="1">Off</option>
-            </select>
+
+        <div class="dashboard-grid">
+
+            <!-- Engine Parameters Container -->
+            <div style="position: relative;">
+                <div id="controls-overlay" class="overlay">
+                    <div class="overlay-text">Engine Offline</div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="section-label">Parameters</div>
+                    <div class="controls-grid">
+                        <!-- Sliders -->
+                        <div class="control-group">
+                            <label for="mix">Mix</label>
+                            <input type="range" id="mix" min="0" max="1" step="0.01" value="0.5">
+                            <span class="val-display" id="mix-val">0.50</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="decay">Decay</label>
+                            <input type="range" id="decay" min="0" max="1" step="0.01" value="0.5">
+                            <span class="val-display" id="decay-val">0.50</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="preDelay">Pre-Delay</label>
+                            <input type="range" id="preDelay" min="0" max="1" step="0.01" value="0.0">
+                            <span class="val-display" id="preDelay-val">0.00</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="filter">Filter</label>
+                            <input type="range" id="filter" min="0" max="1" step="0.01" value="0.5">
+                            <span class="val-display" id="filter-val">0.50</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="modDepth">Mod Depth</label>
+                            <input type="range" id="modDepth" min="0" max="1" step="0.01" value="0.5">
+                            <span class="val-display" id="modDepth-val">0.50</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="modSpeed">Mod Speed</label>
+                            <input type="range" id="modSpeed" min="0" max="1" step="0.01" value="0.5">
+                            <span class="val-display" id="modSpeed-val">0.50</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="eq1Gain">EQ 1 (Hi)</label>
+                            <input type="range" id="eq1Gain" min="-24" max="24" step="0.1" value="-11">
+                            <span class="val-display" id="eq1Gain-val">-11.0 dB</span>
+                        </div>
+                        <div class="control-group">
+                            <label for="eq2Gain">EQ 2 (Lo)</label>
+                            <input type="range" id="eq2Gain" min="-24" max="24" step="0.1" value="5">
+                            <span class="val-display" id="eq2Gain-val">5.0 dB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Routing & Transport -->
+            <div class="right-column" style="position: relative;">
+                <div id="routing-overlay" class="overlay"></div>
+
+                <div class="panel-section source-selector">
+                    <div class="section-label">Routing</div>
+                    <label>Input Source</label>
+                    <div class="source-toggle">
+                        <button class="source-btn active" data-source="mic" id="btn-src-mic">Live Mic</button>
+                        <button class="source-btn" data-source="file" id="btn-src-file">Telemetry File</button>
+                    </div>
+                    <select id="audioSource">
+                        <option value="mic" selected>Live Mic</option>
+                        <option value="file">Telemetry File</option>
+                    </select>
+
+                    <div style="margin-top: 10px;">
+                        <label for="reverbSize">Environment</label>
+                        <select id="reverbSize">
+                            <option value="0">Capsule (Small)</option>
+                            <option value="1" selected>Orbital (Medium)</option>
+                            <option value="2">Vacuum (Big)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="octaveMode">Harmonics</label>
+                        <select id="octaveMode">
+                            <option value="0" selected>Nominal</option>
+                            <option value="1">+1 Octave</option>
+                            <option value="2">+/- 1 Octave</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="disableInputDiffusion">Input Diffusion</label>
+                        <select id="disableInputDiffusion">
+                            <option value="0" selected>Active</option>
+                            <option value="1">Bypassed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="panel-section transport-panel" id="file-player-controls">
+                    <div class="section-label">Data Link</div>
+
+                    <div class="file-upload">
+                        <input type="file" id="audioFile" accept="audio/*">
+                        <span class="file-upload-btn" id="file-name-display">Load Audio Data...</span>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar-bg" id="progress-bg">
+                            <div class="progress-bar-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="time-display">
+                            <span id="time-current">00:00</span>
+                            <span id="time-total">00:00</span>
+                        </div>
+                    </div>
+
+                    <div class="transport-controls">
+                        <button class="t-btn play" id="playFileBtn" disabled title="Play">
+                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                        <button class="t-btn pause" id="pauseFileBtn" disabled title="Pause">
+                            <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        <button class="t-btn stop" id="stopFileBtn" disabled title="Stop">
+                            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-
-    <div id="file-player-controls" class="control-group" style="display: none; margin-top: 20px;">
-        <label for="audioFile">Upload Sample</label>
-        <input type="file" id="audioFile" accept="audio/*" style="margin-bottom: 10px; font-family: inherit;">
-        <div style="display: flex; gap: 10px; width: 100%; justify-content: center;">
-            <button id="playFileBtn" style="padding: 5px 15px; cursor: pointer; background: #27ae60; border: none; border-radius: 4px; color: white;">Play</button>
-            <button id="stopFileBtn" style="padding: 5px 15px; cursor: pointer; background: #c0392b; border: none; border-radius: 4px; color: white;">Stop</button>
-        </div>
-    </div>
-
-    <div class="power-section">
-        <button id="start-audio">Start<br>Audio</button>
-    </div>
-    <div class="status" id="status-text">Click to start audio processing</div>
 </div>
 
 <script type="module" src="main.js"></script>
