@@ -1,4 +1,4 @@
-import Module from './earth-module.js';
+let moduleFactoryPromise = null;
 
 function ensureURLConstructor() {
   if (typeof globalThis.URL === 'function') {
@@ -99,6 +99,12 @@ class EarthWorkletProcessor extends AudioWorkletProcessor {
     let module;
     try {
       ensureURLConstructor();
+
+      if (!moduleFactoryPromise) {
+        moduleFactoryPromise = import('./earth-module.js').then((mod) => mod.default);
+      }
+
+      const Module = await moduleFactoryPromise;
       module = await Module({
         wasmBinary: wasmBytes
       });
