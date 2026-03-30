@@ -57,7 +57,7 @@ async function initAudio() {
                 statusText.textContent = "Audio processing running.";
                 setupUIBindings();
                 startButton.classList.add('active');
-                startButton.textContent = "Power\nON";
+                startButton.innerHTML = "Power<br>ON";
             }
         };
 
