@@ -1,9 +1,10 @@
 let audioCtx;
 let earthNode;
 let micSourceNode;
-let stream;
+let micStream;
 let audioBuffer;
 let fileSourceNode;
+let uiBindingsInitialized = false;
 
 const startButton = document.getElementById('start-audio');
 const statusText = document.getElementById('status-text');
@@ -14,29 +15,105 @@ const audioFileInput = document.getElementById('audioFile');
 const playFileBtn = document.getElementById('playFileBtn');
 const stopFileBtn = document.getElementById('stopFileBtn');
 
-// Handle Source Switching
-audioSourceSelect.addEventListener('change', (e) => {
-    const mode = e.target.value;
+const WORKLET_URL = new URL('./earth-worklet-processor.js', import.meta.url).href;
+const WASM_URL = new URL('./earth-module.wasm', import.meta.url).href;
 
-    // Stop and disconnect file source if playing
-    if (fileSourceNode) {
-        try { fileSourceNode.stop(); } catch (err) {}
-        fileSourceNode.disconnect();
-        fileSourceNode = null;
+function setStatus(message) {
+    statusText.textContent = message;
+}
+
+function logError(context, err) {
+    console.error(`[EarthPedal] ${context}`, err);
+}
+
+function stopAndDisconnectFileSource() {
+    if (!fileSourceNode) return;
+
+    try {
+        fileSourceNode.stop();
+    } catch (err) {
+        // already stopped, ignore
     }
 
+    try {
+        fileSourceNode.disconnect();
+    } catch (err) {
+        // already disconnected, ignore
+    }
+
+    fileSourceNode = null;
+}
+
+function disconnectMicSource() {
+    if (!micSourceNode) return;
+
+    try {
+        micSourceNode.disconnect();
+    } catch (err) {
+        // already disconnected, ignore
+    }
+}
+
+function disconnectAllSources() {
+    stopAndDisconnectFileSource();
+    disconnectMicSource();
+}
+
+async function ensureMicSource() {
+    if (!audioCtx || !earthNode) {
+        throw new Error('Audio graph is not initialized yet.');
+    }
+
+    if (!micStream) {
+        setStatus('Requesting microphone access...');
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                autoGainControl: false,
+                noiseSuppression: false,
+                latency: 0
+            }
+        });
+    }
+
+    if (!micSourceNode) {
+        micSourceNode = audioCtx.createMediaStreamSource(micStream);
+    }
+
+    disconnectAllSources();
+    micSourceNode.connect(earthNode);
+    setStatus('Mic connected.');
+}
+
+function connectFileMode() {
+    disconnectAllSources();
+    filePlayerControls.style.display = 'block';
+    setStatus(audioBuffer ? 'File loaded.' : 'File player active. Upload and play a file.');
+}
+
+async function switchSource(mode) {
     if (mode === 'mic') {
         filePlayerControls.style.display = 'none';
-        if (micSourceNode && earthNode) {
-            try { micSourceNode.connect(earthNode); } catch (err) {}
-            statusText.textContent = "Mic input active.";
+
+        if (!audioCtx || !earthNode) {
+            setStatus('Press Start Audio to initialize first.');
+            return;
         }
-    } else {
-        filePlayerControls.style.display = 'block';
-        if (micSourceNode) {
-            try { micSourceNode.disconnect(); } catch (err) {}
-        }
-        statusText.textContent = "File player active. Upload and play a file.";
+
+        await ensureMicSource();
+        return;
+    }
+
+    connectFileMode();
+}
+
+// Handle Source Switching
+audioSourceSelect.addEventListener('change', async (e) => {
+    try {
+        await switchSource(e.target.value);
+    } catch (err) {
+        logError('source switch failed', err);
+        setStatus(`Source switch error: ${err.message}`);
     }
 });
 
@@ -46,52 +123,53 @@ audioFileInput.addEventListener('change', async (e) => {
     if (!file) return;
 
     if (!audioCtx) {
-        statusText.textContent = "Please Start Audio first.";
+        setStatus('Please Start Audio first.');
         return;
     }
 
     try {
-        statusText.textContent = "Loading file...";
+        setStatus('Loading file...');
         const arrayBuffer = await file.arrayBuffer();
-        statusText.textContent = "Decoding audio...";
+        setStatus('Decoding audio...');
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        statusText.textContent = "File ready to play.";
+        setStatus('File loaded.');
     } catch (err) {
-        console.error("Error decoding audio file:", err);
-        statusText.textContent = "Error decoding file.";
+        logError('error decoding audio file', err);
+        setStatus(`Error decoding file: ${err.message}`);
     }
 });
 
 function playFile() {
     if (!audioCtx || !audioBuffer || !earthNode) return;
 
-    if (fileSourceNode) {
-        try { fileSourceNode.stop(); } catch (err) {}
-        fileSourceNode.disconnect();
-    }
+    disconnectAllSources();
 
     fileSourceNode = audioCtx.createBufferSource();
     fileSourceNode.buffer = audioBuffer;
     fileSourceNode.loop = true;
-
     fileSourceNode.connect(earthNode);
     fileSourceNode.start();
-    statusText.textContent = "Playing file...";
+
+    setStatus('Playing file...');
 }
 
 playFileBtn.addEventListener('click', () => {
-    if (audioSourceSelect.value === 'file') {
-        playFile();
+    if (audioSourceSelect.value !== 'file') {
+        setStatus('Switch source to File Player first.');
+        return;
     }
+
+    if (!audioBuffer) {
+        setStatus('Load a file before pressing play.');
+        return;
+    }
+
+    playFile();
 });
 
 stopFileBtn.addEventListener('click', () => {
-    if (fileSourceNode) {
-        try { fileSourceNode.stop(); } catch (err) {}
-        fileSourceNode.disconnect();
-        fileSourceNode = null;
-        statusText.textContent = "Playback stopped.";
-    }
+    stopAndDisconnectFileSource();
+    setStatus('Playback stopped.');
 });
 
 // Define UI element mappings to Worklet Parameters
@@ -111,61 +189,68 @@ const paramMappings = [
 
 async function initAudio() {
     try {
-        statusText.textContent = "Requesting microphone access...";
-
-        // Request raw microphone input (disable browser processing)
-        stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: false,
-                autoGainControl: false,
-                noiseSuppression: false,
-                latency: 0
-            }
-        });
-
-        statusText.textContent = "Initializing AudioContext...";
+        // Debug summary: initialize graph first (AudioContext -> worklet module -> wasm fetch -> node init),
+        // then request microphone only if/when the active source is "mic" so file mode never blocks on mic permission.
+        setStatus('Initializing AudioContext...');
         audioCtx = new (window.AudioContext || window.webkitAudioContext)({
             latencyHint: 'interactive'
         });
 
-        statusText.textContent = "Loading Earth Worklet...";
-        await audioCtx.audioWorklet.addModule('earth-worklet-processor.js');
+        setStatus('Loading worklet...');
+        await audioCtx.audioWorklet.addModule(WORKLET_URL);
 
-        statusText.textContent = "Fetching WASM binary...";
-        const response = await fetch('earth-module.wasm');
+        setStatus('Fetching wasm...');
+        const response = await fetch(WASM_URL);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch wasm (${response.status} ${response.statusText}) from ${response.url || WASM_URL}`);
+        }
+
         const wasmBytes = await response.arrayBuffer();
+        setStatus('Wasm fetched.');
 
         earthNode = new AudioWorkletNode(audioCtx, 'earth-worklet-processor', {
             outputChannelCount: [2]
         });
 
-        // Handle messages from the worklet
-        earthNode.port.onmessage = (event) => {
+        earthNode.port.onmessage = async (event) => {
             if (event.data.type === 'ready') {
-                statusText.textContent = "Audio processing running.";
-                setupUIBindings();
+                setStatus('Worklet ready.');
+                if (!uiBindingsInitialized) {
+                    setupUIBindings();
+                    uiBindingsInitialized = true;
+                }
+
                 startButton.classList.add('active');
-                startButton.innerHTML = "Power<br>ON";
+                startButton.innerHTML = 'Power<br>ON';
+
+                try {
+                    await switchSource(audioSourceSelect.value);
+                } catch (err) {
+                    logError('source activation failed after worklet ready', err);
+                    setStatus(`Ready, but source activation failed: ${err.message}`);
+                }
+                return;
+            }
+
+            if (event.data.type === 'error') {
+                const details = `[${event.data.stage || 'worklet'}] ${event.data.message || 'Unknown worklet error'}`;
+                console.error('[EarthPedal] Worklet reported error', event.data);
+                setStatus(`Worklet error: ${details}`);
             }
         };
 
-        // Send initialization data to the worklet
-        earthNode.port.postMessage({
-            type: 'init',
-            wasmBytes: wasmBytes
-        });
-
-        // Setup Mic Input but don't connect immediately if not selected
-        micSourceNode = audioCtx.createMediaStreamSource(stream);
-
-        if (audioSourceSelect.value === 'mic') {
-            micSourceNode.connect(earthNode);
-        }
         earthNode.connect(audioCtx.destination);
 
+        earthNode.port.postMessage({
+            type: 'init',
+            wasmBytes
+        });
+
+        setStatus('Waiting for worklet ready...');
     } catch (err) {
-        console.error("Audio Initialization Error:", err);
-        statusText.textContent = `Error: ${err.message}`;
+        logError('audio initialization failed', err);
+        setStatus(`Error: ${err.message}`);
+        throw err;
     }
 }
 
@@ -176,18 +261,14 @@ function setupUIBindings() {
 
         if (!el) return;
 
-        // Set initial value from UI to Node
         updateNodeParam(mapping.id, el.value);
 
-        // Add event listener for real-time updates
         el.addEventListener('input', (e) => {
             const val = e.target.value;
             updateNodeParam(mapping.id, val);
 
-            // Update value display if it's a slider
             if (!mapping.isSwitch && valDisplay) {
                 const numVal = parseFloat(val);
-                // Format appropriately based on magnitude
                 const displayStr = mapping.id.startsWith('eq') ? numVal.toFixed(1) : numVal.toFixed(2);
                 valDisplay.textContent = displayStr + (mapping.suffix || '');
             }
@@ -203,16 +284,26 @@ function updateNodeParam(paramName, value) {
 
 startButton.addEventListener('click', async () => {
     if (!audioCtx) {
-        await initAudio();
-    } else if (audioCtx.state === 'suspended') {
+        try {
+            await initAudio();
+        } catch (err) {
+            // initAudio already reports the error in status/console
+        }
+        return;
+    }
+
+    if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
         startButton.classList.add('active');
-        startButton.textContent = "Power\nON";
-        statusText.textContent = "Audio processing running.";
-    } else if (audioCtx.state === 'running') {
+        startButton.innerHTML = 'Power<br>ON';
+        setStatus('Audio resumed.');
+        return;
+    }
+
+    if (audioCtx.state === 'running') {
         await audioCtx.suspend();
         startButton.classList.remove('active');
-        startButton.textContent = "Start\nAudio";
-        statusText.textContent = "Audio paused.";
+        startButton.innerHTML = 'Start<br>Audio';
+        setStatus('Audio paused.');
     }
 });

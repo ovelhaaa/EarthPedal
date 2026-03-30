@@ -40,7 +40,6 @@ jobs:
             -s EXPORT_ES6=1 \
             -s MODULARIZE=1 \
             -s EXPORT_NAME="'EarthModule'" \
-            -s ENVIRONMENT=worker \
             -s EXPORTED_FUNCTIONS="['_malloc', '_free']" \
             -std=c++20 \
             -I./deps/q/q_lib/include \
