@@ -42,6 +42,8 @@ class EarthWorkletProcessor extends AudioWorkletProcessor {
       { name: 'modDepth', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
       { name: 'modSpeed', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
       { name: 'filter', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
+      { name: 'eq1Gain', defaultValue: -11.0, minValue: -24.0, maxValue: 24.0 },
+      { name: 'eq2Gain', defaultValue: 5.0, minValue: -24.0, maxValue: 24.0 },
       // Switches
       { name: 'reverbSize', defaultValue: 1, minValue: 0, maxValue: 2 }, // 0: Small, 1: Med, 2: Big
       { name: 'octaveMode', defaultValue: 0, minValue: 0, maxValue: 2 }, // 0: None, 1: Up, 2: Up+Down
@@ -93,6 +95,8 @@ class EarthWorkletProcessor extends AudioWorkletProcessor {
     this.processor.setModDepth(getParam('modDepth'));
     this.processor.setModSpeed(getParam('modSpeed'));
     this.processor.setFilter(getParam('filter'));
+    this.processor.setEq1Gain(getParam('eq1Gain'));
+    this.processor.setEq2Gain(getParam('eq2Gain'));
     this.processor.setReverbSize(Math.round(getParam('reverbSize')));
     this.processor.setOctaveMode(Math.round(getParam('octaveMode')));
     this.processor.setDisableInputDiffusion(getParam('disableInputDiffusion') > 0.5);

@@ -60,6 +60,16 @@ public:
     void setModSpeed(float value) { modspeed_ = value; updateSmoothedParams(); }
     void setFilter(float value) { filter_ = value; updateSmoothedParams(); }
 
+    void setEq1Gain(float gain) {
+        eq1_gain_ = gain;
+        eq1_.config(eq1_gain_, 140_Hz, sampleRate_);
+    }
+
+    void setEq2Gain(float gain) {
+        eq2_gain_ = gain;
+        eq2_.config(eq2_gain_, 160_Hz, sampleRate_);
+    }
+
     void setReverbSize(int size) {
         float setTimeScale;
         if (size == 0) { // Small
@@ -216,6 +226,9 @@ private:
 
     float dryMix_ = 1.0f;
     float wetMix_ = 1.0f;
+
+    float eq1_gain_ = -11.0f;
+    float eq2_gain_ = 5.0f;
 };
 
 EMSCRIPTEN_BINDINGS(earth_module) {
@@ -230,5 +243,7 @@ EMSCRIPTEN_BINDINGS(earth_module) {
         .function("setReverbSize", &EarthAudioProcessor::setReverbSize)
         .function("setOctaveMode", &EarthAudioProcessor::setOctaveMode)
         .function("setDisableInputDiffusion", &EarthAudioProcessor::setDisableInputDiffusion)
+        .function("setEq1Gain", &EarthAudioProcessor::setEq1Gain)
+        .function("setEq2Gain", &EarthAudioProcessor::setEq2Gain)
         .function("process", &EarthAudioProcessor::process, emscripten::allow_raw_pointers());
 }
