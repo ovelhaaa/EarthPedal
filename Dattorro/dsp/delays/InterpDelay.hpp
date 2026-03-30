@@ -106,9 +106,8 @@ public:
     #pragma GCC pop_options
 
     void clear() {
-        // uint32_t **tempPtr = (uint32_t**)sdramData;
         for(int i = 0; i < l; ++i) {
-            sdramData[bufferNumber][i] = uint32_t(0);
+            sdramData[bufferNumber][i] = 0.0f;
         }
         input = 0.;
         output = 0.;
