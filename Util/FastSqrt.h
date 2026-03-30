@@ -5,7 +5,7 @@
 #include <limits>
 
 // https://en.wikipedia.org/wiki/Fast_inverse_square_root
-static constexpr float fastInvSqrt(float number) noexcept
+static float fastInvSqrt(float number) noexcept
 {
     //static_assert(std::numeric_limits<float>::is_iec559);
     //float const y = std::bit_cast<float>(

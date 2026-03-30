@@ -2,11 +2,11 @@
 #include <vector>
 #include <cstdint>
 
-#include "daisy_seed.h" // Needed for DSY_SDRAM_BSS definition
 
 
-//extern float DSY_SDRAM_BSS sdramData[50][144000];
-extern float DSY_SDRAM_BSS sdramData[13][37000];
+
+//extern float sdramData[50][144000];
+extern float sdramData[13][37000];
 //extern float sdramData[50][144000];
 extern unsigned int count;
 extern float hold;
