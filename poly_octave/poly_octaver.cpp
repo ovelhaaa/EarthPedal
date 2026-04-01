@@ -46,6 +46,7 @@ float PolyOctaver::ProcessMono(float in_sample) {
         return in_sample;
     }
 
+    const float out_sample = output_ring_[ring_index_];
     input_ring_[ring_index_] = in_sample;
 
     if (ring_index_ == static_cast<int>(resample_factor) - 1) {
@@ -75,7 +76,7 @@ float PolyOctaver::ProcessMono(float in_sample) {
         ring_index_ = 0;
     }
 
-    return output_ring_[ring_index_];
+    return out_sample;
 }
 
 void PolyOctaver::ProcessBlockMono(const float* input, float* output, std::size_t frames) {
