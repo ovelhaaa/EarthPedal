@@ -342,6 +342,18 @@
             );
         }
 
+        .timeline::-webkit-slider-runnable-track {
+            background: linear-gradient(to right, rgba(142, 167, 232, 0.7) var(--progress, 0%), rgba(71, 82, 108, 0.72) var(--progress, 0%));
+            border-radius: 999px;
+            height: 7px;
+        }
+
+        .timeline::-moz-range-track {
+            background: linear-gradient(to right, rgba(142, 167, 232, 0.7) var(--progress, 0%), rgba(71, 82, 108, 0.72) var(--progress, 0%));
+            border-radius: 999px;
+            height: 7px;
+        }
+
         .timeline::-webkit-slider-thumb,
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
