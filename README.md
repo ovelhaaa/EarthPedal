@@ -63,3 +63,33 @@ code was split out from the Funbox project to preserve the License used in reuse
 To build Earth, it is recommended to clone the Funbox project and run "git submodule update --init --recursive" 
 to get Earth and all required dependencies. Otherwise, you can download the .bin executable to upload to the Daisy Seed 
 from the Releases page.
+## Web builds
+
+Build the current web reverb demo:
+
+```bash
+make web-main
+```
+
+Build the standalone octave-only web demo:
+
+```bash
+make web-octave
+```
+
+Build both:
+
+```bash
+make web-all
+```
+
+Local static run:
+
+```bash
+python3 -m http.server 8080
+```
+
+Then open:
+
+- `http://localhost:8080/web/` for the main demo
+- `http://localhost:8080/web/octave.html` for the octave-only demo

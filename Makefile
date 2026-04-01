@@ -32,3 +32,13 @@ C_INCLUDES += -I../../infra/include
 # Include funbox.h
 C_INCLUDES += -I../../include
 
+
+.PHONY: web-main web-octave web-all
+
+web-main:
+	bash src/makefile_wasm
+
+web-octave:
+	bash src/makefile_wasm_octave
+
+web-all: web-main web-octave
