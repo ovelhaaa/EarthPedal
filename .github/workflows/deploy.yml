@@ -69,8 +69,8 @@ jobs:
             -I./deps/gcem/include \
             -I./deps/infra/include \
             -I./Util \
-            -I /src/octave_wasm_wrapper.cpp \
-            -I /poly_octave/poly_octaver.cpp \
+            src/octave_wasm_wrapper.cpp \
+            poly_octave/poly_octaver.cpp \
             -o web/octave-module.js
 
       - name: Assemble Pages dist
