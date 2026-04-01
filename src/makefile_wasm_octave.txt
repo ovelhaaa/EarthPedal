@@ -3,13 +3,25 @@ set -euo pipefail
 
 mkdir -p deps
 if [ ! -d "deps/q" ]; then
-    git clone https://github.com/cycfi/q.git deps/q
+    git clone --branch v0.0.3 https://github.com/cycfi/q.git deps/q || {
+        echo "Failed to clone q at pinned version v0.0.3" >&2
+        exit 1
+    }
 fi
 if [ ! -d "deps/gcem" ]; then
-    git clone https://github.com/kthohr/gcem.git deps/gcem
+    git clone --branch v1.18.0 https://github.com/kthohr/gcem.git deps/gcem || {
+        echo "Failed to clone gcem at pinned version v1.18.0" >&2
+        exit 1
+    }
 fi
 if [ ! -d "deps/infra" ]; then
-    git clone https://github.com/cycfi/infra.git deps/infra
+    git clone https://github.com/cycfi/infra.git deps/infra && \
+    cd deps/infra && \
+    git checkout 89ee88c6daaa8efb5b6664c54d9d90b8916b5cc0 && \
+    cd ../.. || {
+        echo "Failed to clone/checkout infra at pinned commit 89ee88c6daaa8efb5b6664c54d9d90b8916b5cc0" >&2
+        exit 1
+    }
 fi
 
 emcc -O3 \
