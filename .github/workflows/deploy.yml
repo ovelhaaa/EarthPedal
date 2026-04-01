@@ -69,7 +69,7 @@ jobs:
             -I./deps/gcem/include \
             -I./deps/infra/include \
             -I./Util \
-            src/octave_wasm_wrapper.cpp \
+           // src/octave_wasm_wrapper.cpp \
             poly_octave/poly_octaver.cpp \
             -o web/octave-module.js
 
