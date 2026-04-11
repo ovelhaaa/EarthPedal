@@ -279,8 +279,10 @@ function pcmFloatToInt16(input) {
 }
 
 async function encodeBufferToMp3(renderedBuffer) {
-    const lamejsModule = await import('https://cdn.jsdelivr.net/npm/lamejs@1.2.1/+esm');
-    const lamejs = lamejsModule.default || lamejsModule;
+    const lamejs = window.lamejs;
+    if (!lamejs || typeof lamejs.Mp3Encoder !== 'function') {
+        throw new Error('Encoder MP3 não está disponível. Verifique o asset local lame.min.js.');
+    }
 
     const channels = Math.min(2, renderedBuffer.numberOfChannels || 1);
     const sampleRate = renderedBuffer.sampleRate;
