@@ -7,6 +7,7 @@ let fileSourceNode;
 let uiBindingsInitialized = false;
 let loadedFileName = 'processed-audio';
 let isExportingMp3 = false;
+let wasmBytesCache = null;
 
 let engineState = 'off';
 let transportState = 'stopped';
@@ -288,6 +289,8 @@ async function encodeBufferToMp3(renderedBuffer) {
     const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192);
     const blockSize = 1152;
     const chunks = [];
+    const yieldEveryBlocks = 40;
+    let processedBlocks = 0;
 
     for (let i = 0; i < left.length; i += blockSize) {
         const leftChunk = left.subarray(i, i + blockSize);
@@ -297,6 +300,12 @@ async function encodeBufferToMp3(renderedBuffer) {
 
         if (mp3buf.length > 0) {
             chunks.push(new Uint8Array(mp3buf));
+        }
+
+        processedBlocks += 1;
+        if (processedBlocks % yieldEveryBlocks === 0) {
+            // Yield to keep UI responsive during long encodes.
+            await new Promise((resolve) => setTimeout(resolve, 0));
         }
     }
 
@@ -314,17 +323,19 @@ async function renderProcessedBuffer() {
     }
 
     const sampleRate = audioBuffer.sampleRate;
-    const frameCount = Math.ceil(audioBuffer.duration * sampleRate);
+    const frameCount = audioBuffer.length;
     const offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
 
     await offlineCtx.audioWorklet.addModule(WORKLET_URL);
 
-    const response = await fetch(WASM_URL);
-    if (!response.ok) {
-        throw new Error(`Falha ao baixar wasm (${response.status} ${response.statusText}).`);
+    if (!wasmBytesCache) {
+        const response = await fetch(WASM_URL);
+        if (!response.ok) {
+            throw new Error(`Falha ao baixar wasm (${response.status} ${response.statusText}).`);
+        }
+        wasmBytesCache = await response.arrayBuffer();
     }
-
-    const wasmBytes = await response.arrayBuffer();
+    const wasmBytes = wasmBytesCache;
     const renderNode = new AudioWorkletNode(offlineCtx, 'earth-worklet-processor', {
         outputChannelCount: [2]
     });
