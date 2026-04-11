@@ -5,6 +5,9 @@ let micStream;
 let audioBuffer;
 let fileSourceNode;
 let uiBindingsInitialized = false;
+let loadedFileName = 'processed-audio';
+let isExportingMp3 = false;
+let wasmBytesCache = null;
 
 let engineState = 'off';
 let transportState = 'stopped';
@@ -24,6 +27,7 @@ const audioFileInput = document.getElementById('audioFile');
 const playFileBtn = document.getElementById('playFileBtn');
 const pauseFileBtn = document.getElementById('pauseFileBtn');
 const stopFileBtn = document.getElementById('stopFileBtn');
+const exportMp3Btn = document.getElementById('exportMp3Btn');
 const transportStateLabel = document.getElementById('transport-state');
 const timelineInput = document.getElementById('transportTimeline');
 const elapsedTimeLabel = document.getElementById('elapsed-time');
@@ -244,7 +248,172 @@ function updateTransportButtons() {
     playFileBtn.disabled = !engineRunning || !inFileMode || !hasFile || transportState === 'playing';
     pauseFileBtn.disabled = !engineRunning || !inFileMode || !hasFile || transportState !== 'playing';
     stopFileBtn.disabled = !engineRunning || !inFileMode || !hasFile || transportState === 'stopped';
+    exportMp3Btn.disabled = !inFileMode || !hasFile || isExportingMp3;
     timelineInput.disabled = !engineRunning || !inFileMode || !hasFile;
+}
+
+function getCurrentParams() {
+    const params = {};
+    paramMappings.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        params[id] = Number(el.value);
+    });
+    return params;
+}
+
+function applyParamsToNode(node, params) {
+    Object.entries(params).forEach(([name, value]) => {
+        if (!node.parameters.has(name)) return;
+        node.parameters.get(name).value = Number(value);
+    });
+}
+
+function pcmFloatToInt16(input) {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i += 1) {
+        const s = Math.max(-1, Math.min(1, input[i]));
+        output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return output;
+}
+
+async function encodeBufferToMp3(renderedBuffer) {
+    const lamejs = window.lamejs;
+    if (!lamejs || typeof lamejs.Mp3Encoder !== 'function') {
+        throw new Error('Encoder MP3 não está disponível. Verifique o asset local lame.min.js.');
+    }
+
+    const channels = Math.min(2, renderedBuffer.numberOfChannels || 1);
+    const sampleRate = renderedBuffer.sampleRate;
+    const left = pcmFloatToInt16(renderedBuffer.getChannelData(0));
+    const right = channels > 1 ? pcmFloatToInt16(renderedBuffer.getChannelData(1)) : left;
+    const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192);
+    const blockSize = 1152;
+    const chunks = [];
+    const yieldEveryBlocks = 40;
+    let processedBlocks = 0;
+
+    for (let i = 0; i < left.length; i += blockSize) {
+        const leftChunk = left.subarray(i, i + blockSize);
+        const mp3buf = channels > 1
+            ? encoder.encodeBuffer(leftChunk, right.subarray(i, i + blockSize))
+            : encoder.encodeBuffer(leftChunk);
+
+        if (mp3buf.length > 0) {
+            chunks.push(new Uint8Array(mp3buf));
+        }
+
+        processedBlocks += 1;
+        if (processedBlocks % yieldEveryBlocks === 0) {
+            // Yield to keep UI responsive during long encodes.
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+    }
+
+    const flushBuf = encoder.flush();
+    if (flushBuf.length > 0) {
+        chunks.push(new Uint8Array(flushBuf));
+    }
+
+    return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+async function renderProcessedBuffer() {
+    if (!audioBuffer) {
+        throw new Error('Nenhum arquivo carregado para exportar.');
+    }
+
+    const sampleRate = audioBuffer.sampleRate;
+    const frameCount = audioBuffer.length;
+    const offlineCtx = new OfflineAudioContext(2, frameCount, sampleRate);
+
+    await offlineCtx.audioWorklet.addModule(WORKLET_URL);
+
+    if (!wasmBytesCache) {
+        const response = await fetch(WASM_URL);
+        if (!response.ok) {
+            throw new Error(`Falha ao baixar wasm (${response.status} ${response.statusText}).`);
+        }
+        wasmBytesCache = await response.arrayBuffer();
+    }
+    const wasmBytes = wasmBytesCache;
+    const renderNode = new AudioWorkletNode(offlineCtx, 'earth-worklet-processor', {
+        outputChannelCount: [2]
+    });
+
+    const ready = new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Timeout ao iniciar o worklet para exportação.'));
+        }, 10000);
+
+        renderNode.port.onmessage = (event) => {
+            if (event.data.type === 'ready') {
+                clearTimeout(timeoutId);
+                resolve();
+            } else if (event.data.type === 'error') {
+                clearTimeout(timeoutId);
+                reject(new Error(event.data.message || 'Erro no worklet durante exportação.'));
+            }
+        };
+    });
+
+    renderNode.port.postMessage({ type: 'init', wasmBytes });
+    await ready;
+    applyParamsToNode(renderNode, getCurrentParams());
+
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(renderNode);
+    renderNode.connect(offlineCtx.destination);
+    source.start();
+
+    return offlineCtx.startRendering();
+}
+
+function sanitizeBaseFileName(name) {
+    return name
+        .replace(/\.[^/.]+$/, '')
+        .trim()
+        .replace(/[^\w.-]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'processed-audio';
+}
+
+async function exportCurrentFileAsMp3() {
+    if (!audioBuffer) {
+        setStatus('Carregue um arquivo antes de exportar.');
+        return;
+    }
+
+    if (isExportingMp3) return;
+
+    try {
+        isExportingMp3 = true;
+        updateTransportButtons();
+        setStatus('Processando áudio com os parâmetros atuais…');
+
+        const renderedBuffer = await renderProcessedBuffer();
+        setStatus('Codificando MP3…');
+        const mp3Blob = await encodeBufferToMp3(renderedBuffer);
+
+        const fileName = `${sanitizeBaseFileName(loadedFileName)}-processed.mp3`;
+        const downloadUrl = URL.createObjectURL(mp3Blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(downloadUrl);
+
+        setStatus(`Exportação concluída: ${fileName}`);
+    } catch (err) {
+        logError('mp3 export failed', err);
+        setStatus(`Erro ao exportar MP3: ${err.message}`);
+    } finally {
+        isExportingMp3 = false;
+        updateTransportButtons();
+    }
 }
 
 function startPlaybackAt(offsetSeconds) {
@@ -350,6 +519,7 @@ audioFileInput.addEventListener('change', async (e) => {
         const arrayBuffer = await file.arrayBuffer();
         setStatus('Decoding file…');
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        loadedFileName = file.name || 'processed-audio';
         pausedOffset = 0;
         updateTimelineUI(0);
         setTransportState('stopped', `Loaded: ${file.name}`);
@@ -375,6 +545,10 @@ pauseFileBtn.addEventListener('click', () => {
 
 stopFileBtn.addEventListener('click', () => {
     stopPlayback();
+});
+
+exportMp3Btn.addEventListener('click', () => {
+    exportCurrentFileAsMp3();
 });
 
 timelineInput.addEventListener('input', () => {
