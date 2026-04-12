@@ -286,8 +286,36 @@ async function encodeBufferToMp3(renderedBuffer) {
 
     const channels = Math.min(2, renderedBuffer.numberOfChannels || 1);
     const sampleRate = renderedBuffer.sampleRate;
-    const left = pcmFloatToInt16(renderedBuffer.getChannelData(0));
-    const right = channels > 1 ? pcmFloatToInt16(renderedBuffer.getChannelData(1)) : left;
+    const leftFloat = renderedBuffer.getChannelData(0);
+    const rightFloat = channels > 1 ? renderedBuffer.getChannelData(1) : leftFloat;
+
+    let peak = 0;
+    for (let i = 0; i < leftFloat.length; i += 1) {
+        const l = Math.abs(leftFloat[i]);
+        const r = Math.abs(rightFloat[i]);
+        if (l > peak) peak = l;
+        if (r > peak) peak = r;
+    }
+
+    if (peak < 1e-5) {
+        throw new Error('Render final praticamente silencioso. Verifique Mix/Octave/Input e tente novamente.');
+    }
+
+    const normalizeGain = Math.min(4, 0.95 / peak);
+    const applyGain = Number.isFinite(normalizeGain) && normalizeGain > 1.0;
+
+    const leftWork = applyGain ? new Float32Array(leftFloat.length) : leftFloat;
+    const rightWork = applyGain ? new Float32Array(rightFloat.length) : rightFloat;
+
+    if (applyGain) {
+        for (let i = 0; i < leftFloat.length; i += 1) {
+            leftWork[i] = leftFloat[i] * normalizeGain;
+            rightWork[i] = rightFloat[i] * normalizeGain;
+        }
+    }
+
+    const left = pcmFloatToInt16(leftWork);
+    const right = channels > 1 ? pcmFloatToInt16(rightWork) : left;
     const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192);
     const blockSize = 1152;
     const chunks = [];

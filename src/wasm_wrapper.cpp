@@ -101,9 +101,10 @@ public:
         for (int i = 0; i < size; ++i) {
             float inputL = inL[i];
             float inputR = inR[i];
+            float monoInput = 0.5f * (inputL + inputR);
 
             // Re-implement process logic from earth.cpp
-            buff_[bin_counter_] = inputL;
+            buff_[bin_counter_] = monoInput;
 
             if (bin_counter_ > 4) {
                 std::span<const float, resample_factor> in_chunk(&(buff_[0]), resample_factor);
@@ -139,7 +140,7 @@ public:
             if (bin_counter_ > 5)
                 bin_counter_ = 0;
 
-            float reverb_in = inputL;
+            float reverb_in = monoInput;
             if (effect_mode_ != 0) {
                 reverb_in = buff_out_[bin_counter_];
             }
