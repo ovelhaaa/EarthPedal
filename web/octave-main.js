@@ -57,7 +57,11 @@ function applyParams() {
 async function initAudio() {
   els.engine.textContent = 'Engine: initializing';
   audioCtx = new AudioContext();
-  await audioCtx.audioWorklet.addModule(WORKLET_URL);
+  try {
+    await audioCtx.audioWorklet.addModule(WORKLET_URL);
+  } catch (err) {
+    throw new Error(`Failed to load octave worklet. Build web assets with "make web-octave" and verify web/octave-module.js exists. Original error: ${err.message || String(err)}`);
+  }
 
   octaveNode = new AudioWorkletNode(audioCtx, 'octave-worklet-processor', {
     numberOfInputs: 1,
