@@ -23,7 +23,15 @@ DAISYSP_DIR = ../../DaisySP
 
 # Core location, and generic Makefile.
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
+
+WEB_GOALS := web-main web-octave web-all
+REQUESTED_WEB_GOALS := $(filter $(WEB_GOALS),$(MAKECMDGOALS))
+
+ifneq ($(strip $(REQUESTED_WEB_GOALS)),)
+$(info [EarthPedal] Skipping firmware toolchain include for web-only target(s): $(REQUESTED_WEB_GOALS))
+else
 include $(SYSTEM_FILES_DIR)/Makefile
+endif
 
 C_INCLUDES += -I../../q/q_lib/include
 C_INCLUDES += -I../../gcem/include

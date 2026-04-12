@@ -1,5 +1,50 @@
 import Module from './octave-module.js';
 
+function ensureURLConstructor() {
+  if (typeof globalThis.URL === 'function') return;
+
+  const hasAbsoluteScheme = (value) => /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
+  const normalizePath = (path) => {
+    const segments = [];
+    path.split('/').forEach((segment) => {
+      if (!segment || segment === '.') return;
+      if (segment === '..') {
+        segments.pop();
+        return;
+      }
+      segments.push(segment);
+    });
+    return segments.join('/');
+  };
+
+  globalThis.URL = class URL {
+    constructor(path, base) {
+      const input = String(path ?? '');
+      if (!base || input.startsWith('/') || hasAbsoluteScheme(input)) {
+        this.href = input;
+        return;
+      }
+
+      const baseStr = String(base);
+      const originMatch = baseStr.match(/^([a-zA-Z][a-zA-Z\d+\-.]*:\/\/[^/]+)(\/.*)?$/);
+      if (!originMatch) {
+        this.href = input;
+        return;
+      }
+
+      const origin = originMatch[1];
+      const basePath = originMatch[2] || '/';
+      const folder = basePath.endsWith('/') ? basePath : basePath.slice(0, basePath.lastIndexOf('/') + 1);
+      const normalized = normalizePath(`${folder}${input}`);
+      this.href = `${origin}/${normalized}`;
+    }
+
+    toString() {
+      return this.href;
+    }
+  };
+}
+
 class OctaveWorkletProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -35,10 +80,15 @@ class OctaveWorkletProcessor extends AudioWorkletProcessor {
   async init(wasmBytes) {
     if (this.processor || this.initializing) return;
     this.initializing = true;
-    this.module = await Module({ wasmBinary: wasmBytes });
-    this.processor = new this.module.OctaveAudioProcessor(sampleRate);
-    this.port.postMessage({ type: 'ready' });
-    this.initializing = false;
+    try {
+      ensureURLConstructor();
+      const { default: Module } = await import('./octave-module.js');
+      this.module = await Module({ wasmBinary: wasmBytes });
+      this.processor = new this.module.OctaveAudioProcessor(sampleRate);
+      this.port.postMessage({ type: 'ready' });
+    } finally {
+      this.initializing = false;
+    }
   }
 
   alloc(size) {
