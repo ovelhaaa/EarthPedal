@@ -82,7 +82,6 @@ class OctaveWorkletProcessor extends AudioWorkletProcessor {
     this.initializing = true;
     try {
       ensureURLConstructor();
-      const { default: Module } = await import('./octave-module.js');
       this.module = await Module({ wasmBinary: wasmBytes });
       this.processor = new this.module.OctaveAudioProcessor(sampleRate);
       this.port.postMessage({ type: 'ready' });
