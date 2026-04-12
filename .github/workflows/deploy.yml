@@ -20,17 +20,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: main
-          path: main-src
-
-      - name: Checkout octave branch
-        uses: actions/checkout@v4
-        with:
-          ref: codex/extract-polyphonic-octave-algorithm-to-module
-          path: octave-src
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -38,12 +29,10 @@ jobs:
           version: 3.1.50
 
       - name: Build main web app
-        working-directory: main-src
         run: |
           bash src/makefile_wasm
 
       - name: Build octave web app
-        working-directory: octave-src
         run: |
           bash src/makefile_wasm_octave
 
@@ -51,9 +40,9 @@ jobs:
         run: |
           rm -rf dist
           mkdir -p dist/octave
-          cp -R main-src/web/. dist/
-          cp -R octave-src/web/. dist/octave/
-          cp octave-src/web/octave.html dist/octave/index.html
+          cp -R web/. dist/
+          cp -R web/. dist/octave/
+          cp web/octave.html dist/octave/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
