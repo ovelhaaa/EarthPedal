@@ -58,7 +58,7 @@ async function initAudio() {
   els.engine.textContent = 'Engine: initializing';
   audioCtx = new AudioContext();
   try {
-    await audioCtx.audioWorklet.addModule(WORKLET_URL);
+    await audioCtx.audioWorklet.addModule(WORKLET_URL, { type: 'module' });
   } catch (err) {
     throw new Error(`Failed to load octave worklet. Build web assets with "make web-octave" and verify web/octave-module.js exists. Original error: ${err.message || String(err)}`);
   }
