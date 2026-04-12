@@ -2,6 +2,7 @@
 #include <emscripten/val.h>
 #include <vector>
 #include <span>
+#include <cmath>
 
 #include "../Dattorro/Dattorro.hpp"
 #include "../Util/Multirate.h"
@@ -120,6 +121,12 @@ public:
                     octave_mix += octave_.down2() * 2.0f;
                 }
 
+                if (!std::isfinite(octave_mix)) {
+                    octave_mix = 0.0f;
+                } else {
+                    octave_mix = std::fmax(-8.0f, std::fmin(8.0f, octave_mix));
+                }
+
                 auto out_chunk = interpolate_(octave_mix);
                 for (size_t j = 0; j < out_chunk.size(); ++j) {
                     float mix = eq2_(eq1_(out_chunk[j]));
@@ -133,6 +140,10 @@ public:
                         buff_out_[j] = mix;
                     else
                         buff_out_[j] = 0.0f;
+
+                    if (!std::isfinite(buff_out_[j])) {
+                        buff_out_[j] = 0.0f;
+                    }
                 }
             }
 
@@ -143,6 +154,10 @@ public:
             float reverb_in = monoInput;
             if (effect_mode_ != 0) {
                 reverb_in = buff_out_[bin_counter_];
+            }
+
+            if (!std::isfinite(reverb_in)) {
+                reverb_in = 0.0f;
             }
 
             reverb_.process(reverb_in, reverb_in);
