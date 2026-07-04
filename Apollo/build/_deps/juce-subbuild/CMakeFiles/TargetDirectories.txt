@@ -1,3 +1,0 @@
-C:/progs/vst/EarthPedal/Apollo/build/_deps/juce-subbuild/CMakeFiles/juce-populate.dir
-C:/progs/vst/EarthPedal/Apollo/build/_deps/juce-subbuild/CMakeFiles/edit_cache.dir
-C:/progs/vst/EarthPedal/Apollo/build/_deps/juce-subbuild/CMakeFiles/rebuild_cache.dir

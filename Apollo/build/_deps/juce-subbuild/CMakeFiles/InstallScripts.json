@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"C:/progs/vst/EarthPedal/Apollo/build/_deps/juce-subbuild/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
