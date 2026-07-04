@@ -21,7 +21,7 @@ ApolloAudioProcessor::ApolloAudioProcessor()
 ApolloAudioProcessor::~ApolloAudioProcessor()
 {
     if (measure_count_in > 0) {
-        double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
+        // double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
         double rms_out = std::sqrt(energy_out_above_24k / measure_count_out);
         std::cout << "[Diagnostic 1a] SR=" << getSampleRate() << " | RMS > 24kHz IN: " << rms_in << " | RMS > 24kHz OUT (after Lagrange): " << rms_out << std::endl;
     }
@@ -112,16 +112,39 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     current_ODswell.setCurrentAndTargetValue(0.4f);
     bypassFade.setCurrentAndTargetValue(0.0f);
 
-    // std::cout << "    [prepareToPlay] resampler reset..." << std::endl;
     // Resampler setup
     octaveResamplerUp.reset();
     octaveResamplerDown.reset();
-    // std::cout << "    [prepareToPlay] resampler sizes..." << std::endl;
-    // Allocate enough memory for max possible samples in 48k for a given host block
-    // max samples = samplesPerBlock * (48000 / sampleRate) + margin
+    
+    // Sliding Window Buffers (size ~ 4096 to be extremely safe for block jitter)
+    slideUp.setSize(1, 4096);
+    slideUp.clear();
+    slideUpValid = 0;
+    
+    slideDown.setSize(1, 4096);
+    slideDown.clear();
+    
+    // Pre-fill slideDown with 64 samples of latency (at 48kHz) to prevent downsampler underrun
+    int initialLatency = 64;
+    slideDownValid = initialLatency;
+    
+    // Temporary processing buffer for 48kHz
     int max48kSamples = (int)(samplesPerBlock * (48000.0 / sampleRate)) + 32;
-    resampleBuffer48k.setSize(1, max48kSamples);
-    // std::cout << "    [prepareToPlay] done." << std::endl;
+    resampleBuffer48kTemp.setSize(1, max48kSamples);
+    
+    // Anti-Aliasing Filter Cutoff
+    // Destination is 48kHz, so Nyquist is 24kHz.
+    // Cutoff = min(23000 Hz, HostSampleRate * 0.45)
+    double cutoffFreq = juce::jmin(23000.0, sampleRate * 0.45);
+    
+    // 8th-order Butterworth Low-Pass filter (cascade of 4 biquads)
+    auto coefs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(cutoffFreq, sampleRate, 8);
+    for (int i = 0; i < 4; ++i) {
+        if (i < coefs.size()) {
+            *antiAliasFilters[i].state = *coefs[i];
+            antiAliasFilters[i].reset();
+        }
+    }
 }
 
 void ApolloAudioProcessor::releaseResources() {}
@@ -211,95 +234,107 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     octaveOutTemp.clear();
 
     if (effect_mode != 0) {
-        // std::cout << "      [processBlock] Upsampling..." << std::endl;
-        // Average inputs for the mono octave path, pad to avoid interpolator over-read
-        juce::AudioBuffer<float> monoInput(1, numSamples + 16);
-        monoInput.clear();
-        monoInput.copyFrom(0, 0, buffer, 0, 0, numSamples);
-        if (buffer.getNumChannels() > 1) {
-            monoInput.addFrom(0, 0, buffer, 1, 0, numSamples);
-            monoInput.applyGain(0.5f);
-        }
-
-        // Resample Up to 48kHz
-        double ratioUp = getSampleRate() / 48000.0;
-        int samples48k = (int)(numSamples / ratioUp);
-        
-        if (!printed1c) {
-            std::cout << "[Diagnostic 1b] octave_dry_mix applied INSIDE the 48kHz resampled loop. Mix is calculated over 48k buffers." << std::endl;
-            std::cout << "[Diagnostic 1c] SR=" << getSampleRate() << " | Host numSamples: " << numSamples << " | resampled samples48k: " << samples48k << " | ratioUp: " << ratioUp << std::endl;
-            std::cout << "                decimator chunk size: 6 | samples48k % 6 = " << (samples48k % 6) << std::endl;
-            printed1c = true;
-        }
-
-        // Measure energy > 24kHz IN
-        for (int i = 0; i < numSamples; ++i) {
-            float x = monoInput.getSample(0, i);
-            float y = 0.5f * (x - prev_x_in);
-            prev_x_in = x;
-            energy_in_above_24k += (double)(y * y);
-            measure_count_in++;
-        }
-
-        octaveResamplerUp.process(ratioUp, monoInput.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k);
-        
-        // Measure energy > 24kHz OUT (Wait, OUT of octaveResamplerUp is 48kHz, it can't have >24kHz.
-        for (int i = 0; i < samples48k; ++i) {
-            float x = resampleBuffer48k.getSample(0, i);
-            float y = 0.5f * (x - prev_x_out);
-            prev_x_out = x;
-            energy_out_above_24k += (double)(y * y);
-            measure_count_out++;
-        }
-
-        // std::cout << "      [processBlock] Processing Decimator/Octave..." << std::endl;
-        // Process Octave at 48kHz
-        for (int i = 0; i < samples48k; ++i) {
-            float inSample = resampleBuffer48k.getSample(0, i);
-            buff[bin_counter] = inSample;
-            
-            if (bin_counter > 4) {
-                std::span<const float, resample_factor> in_chunk(&(buff[0]), resample_factor);
-                const auto sample = decimate(in_chunk); 
-                
-                float octave_mix = 0.0f;
-                octave->update(sample);
-
-                if (effect_mode != 0)
-                    octave_mix += octave->up1() * 2.0f;
-                if (effect_mode == 2) {
-                    octave_mix += octave->down1() * 2.0f;
-                    octave_mix += octave->down2() * 2.0f;
-                }
-
-                auto out_chunk = interpolate(octave_mix);
-                for (size_t j = 0; j < out_chunk.size(); ++j)
-                {
-                    float eqSample = eq1.processSample(out_chunk[j]);
-                    float mix = eq2.processSample(eqSample);
-
-                    float dryLevel = 0.5f;
-                    if (!octave_dry_mix || effect_mode == 2) 
-                        mix += dryLevel * buff[j];
-                        
-                    buff_out[j] = mix;
-                }
+        // --- 1. Apply Anti-Aliasing Filter and Append to slideUp ---
+        int spaceUp = slideUp.getNumSamples() - slideUpValid;
+        int copyUp = juce::jmin(numSamples, spaceUp);
+        for (int i = 0; i < copyUp; ++i) {
+            float s = buffer.getSample(0, i);
+            if (buffer.getNumChannels() > 1) {
+                s = (s + buffer.getSample(1, i)) * 0.5f;
             }
-            
-            bin_counter += 1;
-            if (bin_counter > 5) bin_counter = 0;
-            
-            resampleBuffer48k.setSample(0, i, buff_out[bin_counter]);
+            // 8th order filter cascade
+            for (int f = 0; f < 4; ++f) {
+                s = antiAliasFilters[f].processSample(s);
+            }
+            slideUp.setSample(0, slideUpValid + i, s);
+        }
+        slideUpValid += copyUp;
+
+        // --- 2. Calculate how many 48k samples to generate ---
+        double ratioUp = getSampleRate() / 48000.0;
+        // We need at least 4 samples margin in slideUp for interpolation
+        int maxConsume = slideUpValid - 4;
+        int samples48k_to_generate = maxConsume > 0 ? (int)(maxConsume / ratioUp) : 0;
+        
+        if (samples48k_to_generate > resampleBuffer48kTemp.getNumSamples()) {
+            samples48k_to_generate = resampleBuffer48kTemp.getNumSamples(); // Safety bound
         }
 
-        // std::cout << "      [processBlock] Downsampling..." << std::endl;
-        // Resample Down to Host Sample Rate
+        if (samples48k_to_generate > 0) {
+            // --- 3. Upsample ---
+            octaveResamplerUp.process(ratioUp, slideUp.getReadPointer(0), resampleBuffer48kTemp.getWritePointer(0), samples48k_to_generate);
+            
+            // --- 4. Shift slideUp left ---
+            int consumedUp = (int)(samples48k_to_generate * ratioUp);
+            int remainingUp = slideUpValid - consumedUp;
+            if (remainingUp > 0 && remainingUp < slideUp.getNumSamples()) {
+                slideUp.copyFrom(0, 0, slideUp, 0, consumedUp, remainingUp);
+            }
+            slideUpValid = remainingUp;
+
+            // --- 5. Process 48k effects ---
+            int spaceDown = slideDown.getNumSamples() - slideDownValid;
+            int process48k = juce::jmin(samples48k_to_generate, spaceDown);
+            
+            for (int i = 0; i < process48k; ++i) {
+                float inSample = resampleBuffer48kTemp.getSample(0, i);
+                buff[bin_counter] = inSample;
+                
+                if (bin_counter > 4) {
+                    std::span<const float, resample_factor> in_chunk(&(buff[0]), resample_factor);
+                    const auto sample = decimate(in_chunk); 
+                    
+                    float octave_mix = 0.0f;
+                    octave->update(sample);
+
+                    if (effect_mode != 0)
+                        octave_mix += octave->up1() * 2.0f;
+                    if (effect_mode == 2) {
+                        octave_mix += octave->down1() * 2.0f;
+                        octave_mix += octave->down2() * 2.0f;
+                    }
+
+                    auto out_chunk = interpolate(octave_mix);
+                    for (size_t j = 0; j < out_chunk.size(); ++j)
+                    {
+                        float eqSample = eq1.processSample(out_chunk[j]);
+                        float mix = eq2.processSample(eqSample);
+
+                        float dryLevel = 0.5f;
+                        if (!octave_dry_mix || effect_mode == 2) 
+                            mix += dryLevel * buff[j];
+                            
+                        buff_out[j] = mix;
+                    }
+                }
+                
+                bin_counter += 1;
+                if (bin_counter > 5) bin_counter = 0;
+                
+                slideDown.setSample(0, slideDownValid + i, buff_out[bin_counter]);
+            }
+            slideDownValid += process48k;
+        }
+
+        // --- 6. Downsample to Host ---
         double ratioDown = 48000.0 / getSampleRate();
         
-        // Ensure resampleBuffer48k has padding to avoid over-read
-        resampleBuffer48k.clear(samples48k, resampleBuffer48k.getNumSamples() - samples48k);
-        
-        octaveResamplerDown.process(ratioDown, resampleBuffer48k.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
+        // Safety: Do we have enough samples in slideDown to produce numSamples?
+        int required48k = (int)(numSamples * ratioDown) + 4;
+        if (slideDownValid >= required48k) {
+            octaveResamplerDown.process(ratioDown, slideDown.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
+            
+            int consumedDown = (int)(numSamples * ratioDown);
+            int remainingDown = slideDownValid - consumedDown;
+            if (remainingDown > 0 && remainingDown < slideDown.getNumSamples()) {
+                slideDown.copyFrom(0, 0, slideDown, 0, consumedDown, remainingDown);
+            }
+            slideDownValid = remainingDown;
+        } else {
+            // Underrun (should not happen if initialLatency is enough)
+            octaveOutTemp.clear();
+        }
+    }
     }
     
     // std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;

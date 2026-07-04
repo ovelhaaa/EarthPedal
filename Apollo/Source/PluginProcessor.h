@@ -52,7 +52,16 @@ public: float prev_x_in = 0.0f; float prev_x_out = 0.0f; double energy_in_above_
     // Resamplers for Octave path
     juce::LagrangeInterpolator octaveResamplerUp;
     juce::LagrangeInterpolator octaveResamplerDown;
-    juce::AudioBuffer<float> resampleBuffer48k;
+    
+    // Sliding Window Buffers for Resampling
+    juce::AudioBuffer<float> slideUp;
+    int slideUpValid = 0;
+    juce::AudioBuffer<float> slideDown;
+    int slideDownValid = 0;
+    juce::AudioBuffer<float> resampleBuffer48kTemp; // Temporary buffer for processing
+    
+    // Anti-Aliasing Filter (4 biquads = 8th order)
+    juce::dsp::IIR::Filter<float> antiAliasFilters[4];
 
     // Buffers and variables for Multirate/Octave
     static constexpr int resample_factor = 6;
