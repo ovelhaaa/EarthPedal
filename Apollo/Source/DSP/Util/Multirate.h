@@ -3,7 +3,19 @@
 #include <array>
 #include <span>
 
-#include <q/utility/ring_buffer.hpp>
+template <typename T, size_t Size>
+class SimpleRingBuffer {
+    std::array<T, Size> data{};
+    size_t head = 0;
+public:
+    void push(T val) {
+        data[head] = val;
+        head = (head + 1) % Size;
+    }
+    T operator[](size_t index) const {
+        return data[(head + index) % Size];
+    }
+};
 
 constexpr size_t resample_factor = 6;
 //constexpr size_t resample_factor = 1; // KAB Note: redefining as 1 to get around DaisySeedProjects effects being set up to process every sample, not every block
@@ -68,8 +80,8 @@ private:
     static constexpr std::size_t fsize2 = 15;
     static constexpr std::size_t offset2 = bsize2 - fsize2;
 
-    cycfi::q::ring_buffer<float> buffer1{bsize1};
-    cycfi::q::ring_buffer<float> buffer2{bsize2};
+    SimpleRingBuffer<float, bsize1> buffer1;
+    SimpleRingBuffer<float, bsize2> buffer2;
 };
 
 
@@ -195,6 +207,6 @@ private:
     static constexpr std::size_t fsize2 = 11;
     static constexpr std::size_t offset2 = bsize2 - fsize2;
 
-    cycfi::q::ring_buffer<float> buffer1{bsize1};
-    cycfi::q::ring_buffer<float> buffer2{bsize2};
+    SimpleRingBuffer<float, bsize1> buffer1;
+    SimpleRingBuffer<float, bsize2> buffer2;
 };

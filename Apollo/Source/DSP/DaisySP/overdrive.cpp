@@ -1,9 +1,23 @@
-#include "dsp.h"
 #include "overdrive.h"
 #include <algorithm>
 
 namespace daisysp
 {
+
+inline float fclamp(float in, float min, float max)
+{
+    return std::clamp(in, min, max);
+}
+
+inline float SoftClip(float x)
+{
+    if(x < -3.0f)
+        return -1.0f;
+    else if(x > 3.0f)
+        return 1.0f;
+    else
+        return x * (27.0f + x * x) / (27.0f + 9.0f * x * x);
+}
 void Overdrive::Init()
 {
     SetDrive(.5f);
