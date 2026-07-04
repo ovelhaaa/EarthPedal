@@ -72,6 +72,7 @@ void runTestForSampleRate(double sampleRate, const String& filename)
 int main(int argc, char* argv[])
 {
     juce::ignoreUnused(argc, argv);
+    juce::ScopedJuceInitialiser_GUI guiInitialiser;
     std::cout << "Starting Apollo DSP Validation Tests..." << std::endl;
 
     runTestForSampleRate(44100.0, "test_out_44100.wav");

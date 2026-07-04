@@ -182,8 +182,9 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     octaveOutTemp.clear();
 
     if (effect_mode != 0) {
-        // Average inputs for the mono octave path
-        juce::AudioBuffer<float> monoInput(1, numSamples);
+        // Average inputs for the mono octave path, pad to avoid interpolator over-read
+        juce::AudioBuffer<float> monoInput(1, numSamples + 16);
+        monoInput.clear();
         monoInput.copyFrom(0, 0, buffer, 0, 0, numSamples);
         if (buffer.getNumChannels() > 1) {
             monoInput.addFrom(0, 0, buffer, 1, 0, numSamples);
@@ -192,7 +193,9 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
         // Resample Up to 48kHz
         double ratioUp = getSampleRate() / 48000.0;
-        int samples48k = octaveResamplerUp.process(ratioUp, monoInput.getReadPointer(0), resampleBuffer48k.getWritePointer(0), numSamples);
+        int samples48k = (int)(numSamples / ratioUp);
+        
+        octaveResamplerUp.process(ratioUp, monoInput.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k);
 
         // Process Octave at 48kHz
         for (int i = 0; i < samples48k; ++i) {
@@ -235,7 +238,11 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
         // Resample Down to Host Sample Rate
         double ratioDown = 48000.0 / getSampleRate();
-        octaveResamplerDown.process(ratioDown, resampleBuffer48k.getReadPointer(0), octaveOutTemp.getWritePointer(0), samples48k);
+        
+        // Ensure resampleBuffer48k has padding to avoid over-read
+        resampleBuffer48k.clear(samples48k, resampleBuffer48k.getNumSamples() - samples48k);
+        
+        octaveResamplerDown.process(ratioDown, resampleBuffer48k.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
     }
 
     // Target parameters smoothing
