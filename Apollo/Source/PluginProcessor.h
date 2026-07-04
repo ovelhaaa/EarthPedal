@@ -58,8 +58,8 @@ private:
     static constexpr int resample_factor = 6;
     Decimator2 decimate;
     Interpolator interpolate;
-    float buff[6] {0.0f};
-    float buff_out[6] {0.0f};
+    std::array<float, resample_factor> buff{};
+    std::array<float, resample_factor> buff_out{};
     int bin_counter = 0;
 
     // Smoothed values
