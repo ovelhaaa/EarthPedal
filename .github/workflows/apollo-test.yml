@@ -37,7 +37,14 @@ jobs:
 
       - name: Run ApolloTest
         working-directory: Apollo
-        run: .\build\Release\ApolloTest.exe
+        run: |
+          $exe = Get-ChildItem -Path build -Filter ApolloTest.exe -Recurse | Select-Object -First 1
+          if ($exe) {
+              & $exe.FullName
+          } else {
+              Write-Error "ApolloTest.exe not found!"
+              exit 1
+          }
 
       - name: Upload WAV Artifacts
         uses: actions/upload-artifact@v4
