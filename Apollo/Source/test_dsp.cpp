@@ -36,6 +36,7 @@ void runTestForSampleRate(double sampleRate, const String& filename)
     ApolloAudioProcessor processor;
     
     std::cout << "  [trace] Calling prepareToPlay..." << std::endl;
+    processor.setRateAndBufferSizeDetails(sampleRate, 256);
     processor.prepareToPlay(sampleRate, 256);
 
     std::cout << "  [trace] Setting APVTS parameters..." << std::endl;
