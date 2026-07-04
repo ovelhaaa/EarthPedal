@@ -33,7 +33,7 @@ jobs:
 
       - name: Build ApolloTest
         working-directory: Apollo
-        run: cmake --build build --config Release --target ApolloTest
+        run: cmake --build build --config Release --target ApolloTest --verbose
 
       - name: Run ApolloTest
         working-directory: Apollo
