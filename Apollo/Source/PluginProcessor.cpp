@@ -15,10 +15,16 @@ ApolloAudioProcessor::ApolloAudioProcessor()
 {
     overdriveLeft.Init();
     overdriveRight.Init();
+    std::cout << "[Diagnostic 1d] ApolloAudioProcessor CONSTRUCTED. State fully reset." << std::endl;
 }
 
 ApolloAudioProcessor::~ApolloAudioProcessor()
 {
+    if (measure_count_in > 0) {
+        double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
+        double rms_out = std::sqrt(energy_out_above_24k / measure_count_out);
+        std::cout << "[Diagnostic 1a] SR=" << getSampleRate() << " | RMS > 24kHz IN: " << rms_in << " | RMS > 24kHz OUT (after Lagrange): " << rms_out << std::endl;
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout ApolloAudioProcessor::createParameterLayout()
@@ -60,35 +66,35 @@ void ApolloAudioProcessor::changeProgramName (int index, const juce::String& new
 
 void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    std::cout << "    [prepareToPlay] reverb.setSampleRate..." << std::endl;
+    // std::cout << "    [prepareToPlay] reverb.setSampleRate..." << std::endl;
     reverb.setSampleRate((float)sampleRate);
-    std::cout << "    [prepareToPlay] reverb.clear..." << std::endl;
+    // std::cout << "    [prepareToPlay] reverb.clear..." << std::endl;
     reverb.clear();
 
-    std::cout << "    [prepareToPlay] init OctaveGenerator..." << std::endl;
+    // std::cout << "    [prepareToPlay] init OctaveGenerator..." << std::endl;
     // The OctaveGenerator is instantiated with 48000 Hz, since it runs in the resampled branch.
     octave = std::make_unique<OctaveGenerator>(48000.0f / resample_factor);
     
-    std::cout << "    [prepareToPlay] IIR Filter setup..." << std::endl;
+    // std::cout << "    [prepareToPlay] IIR Filter setup..." << std::endl;
     // Replace cycfi q filters with JUCE DSP IIR filters. These run inside the resampled 48kHz branch.
     eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
     eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
     
     juce::dsp::ProcessSpec spec { 48000.0 / resample_factor, (juce::uint32)samplesPerBlock, 1 };
-    std::cout << "    [prepareToPlay] IIR eq1.prepare..." << std::endl;
+    // std::cout << "    [prepareToPlay] IIR eq1.prepare..." << std::endl;
     eq1.prepare(spec);
-    std::cout << "    [prepareToPlay] IIR eq2.prepare..." << std::endl;
+    // std::cout << "    [prepareToPlay] IIR eq2.prepare..." << std::endl;
     eq2.prepare(spec);
     eq1.reset();
     eq2.reset();
 
-    std::cout << "    [prepareToPlay] overdriveInit..." << std::endl;
+    // std::cout << "    [prepareToPlay] overdriveInit..." << std::endl;
     overdriveLeft.Init();
     overdriveRight.Init();
     overdriveLeft.SetDrive(0.4f);
     overdriveRight.SetDrive(0.4f);
 
-    std::cout << "    [prepareToPlay] smoothers reset..." << std::endl;
+    // std::cout << "    [prepareToPlay] smoothers reset..." << std::endl;
     // Smoothers setup
     current_predelay.reset(sampleRate, 0.005);
     current_moddepth.reset(sampleRate, 0.005);
@@ -97,7 +103,7 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     current_ODswell.reset(sampleRate, 0.015);
     bypassFade.reset(sampleRate, 0.01); // 10ms smooth
 
-    std::cout << "    [prepareToPlay] smoothers load..." << std::endl;
+    // std::cout << "    [prepareToPlay] smoothers load..." << std::endl;
     // Ensure parameters match defaults immediately
     current_predelay.setCurrentAndTargetValue(apvts.getRawParameterValue("predelay")->load());
     current_moddepth.setCurrentAndTargetValue(apvts.getRawParameterValue("moddepth")->load());
@@ -106,16 +112,16 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     current_ODswell.setCurrentAndTargetValue(0.4f);
     bypassFade.setCurrentAndTargetValue(0.0f);
 
-    std::cout << "    [prepareToPlay] resampler reset..." << std::endl;
+    // std::cout << "    [prepareToPlay] resampler reset..." << std::endl;
     // Resampler setup
     octaveResamplerUp.reset();
     octaveResamplerDown.reset();
-    std::cout << "    [prepareToPlay] resampler sizes..." << std::endl;
+    // std::cout << "    [prepareToPlay] resampler sizes..." << std::endl;
     // Allocate enough memory for max possible samples in 48k for a given host block
     // max samples = samplesPerBlock * (48000 / sampleRate) + margin
     int max48kSamples = (int)(samplesPerBlock * (48000.0 / sampleRate)) + 32;
     resampleBuffer48k.setSize(1, max48kSamples);
-    std::cout << "    [prepareToPlay] done." << std::endl;
+    // std::cout << "    [prepareToPlay] done." << std::endl;
 }
 
 void ApolloAudioProcessor::releaseResources() {}
@@ -136,7 +142,7 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     auto numSamples = buffer.getNumSamples();
     if (numSamples == 0) return;
 
-    std::cout << "      [processBlock] Started block of size " << numSamples << std::endl;
+    // std::cout << "      [processBlock] Started block of size " << numSamples << std::endl;
 
     // Parameters
     float vpredelay = apvts.getRawParameterValue("predelay")->load();
@@ -199,13 +205,13 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // Bypass Fade Logic
     bypassFade.setTargetValue(isBypass ? 1.0f : 0.0f);
 
-    std::cout << "      [processBlock] Setting up Octave branch..." << std::endl;
+    // std::cout << "      [processBlock] Setting up Octave branch..." << std::endl;
     // --- OCTAVE BRANCH (RESAMPLED TO 48kHz) ---
     juce::AudioBuffer<float> octaveOutTemp(1, numSamples);
     octaveOutTemp.clear();
 
     if (effect_mode != 0) {
-        std::cout << "      [processBlock] Upsampling..." << std::endl;
+        // std::cout << "      [processBlock] Upsampling..." << std::endl;
         // Average inputs for the mono octave path, pad to avoid interpolator over-read
         juce::AudioBuffer<float> monoInput(1, numSamples + 16);
         monoInput.clear();
@@ -219,9 +225,34 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         double ratioUp = getSampleRate() / 48000.0;
         int samples48k = (int)(numSamples / ratioUp);
         
-        octaveResamplerUp.process(ratioUp, monoInput.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k);
+        if (!printed1c) {
+            std::cout << "[Diagnostic 1b] octave_dry_mix applied INSIDE the 48kHz resampled loop. Mix is calculated over 48k buffers." << std::endl;
+            std::cout << "[Diagnostic 1c] SR=" << getSampleRate() << " | Host numSamples: " << numSamples << " | resampled samples48k: " << samples48k << " | ratioUp: " << ratioUp << std::endl;
+            std::cout << "                decimator chunk size: 6 | samples48k % 6 = " << (samples48k % 6) << std::endl;
+            printed1c = true;
+        }
 
-        std::cout << "      [processBlock] Processing Decimator/Octave..." << std::endl;
+        // Measure energy > 24kHz IN
+        for (int i = 0; i < numSamples; ++i) {
+            float x = monoInput.getSample(0, i);
+            float y = 0.5f * (x - prev_x_in);
+            prev_x_in = x;
+            energy_in_above_24k += (double)(y * y);
+            measure_count_in++;
+        }
+
+        octaveResamplerUp.process(ratioUp, monoInput.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k);
+        
+        // Measure energy > 24kHz OUT (Wait, OUT of octaveResamplerUp is 48kHz, it can't have >24kHz.
+        for (int i = 0; i < samples48k; ++i) {
+            float x = resampleBuffer48k.getSample(0, i);
+            float y = 0.5f * (x - prev_x_out);
+            prev_x_out = x;
+            energy_out_above_24k += (double)(y * y);
+            measure_count_out++;
+        }
+
+        // std::cout << "      [processBlock] Processing Decimator/Octave..." << std::endl;
         // Process Octave at 48kHz
         for (int i = 0; i < samples48k; ++i) {
             float inSample = resampleBuffer48k.getSample(0, i);
@@ -261,7 +292,7 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             resampleBuffer48k.setSample(0, i, buff_out[bin_counter]);
         }
 
-        std::cout << "      [processBlock] Downsampling..." << std::endl;
+        // std::cout << "      [processBlock] Downsampling..." << std::endl;
         // Resample Down to Host Sample Rate
         double ratioDown = 48000.0 / getSampleRate();
         
@@ -271,7 +302,7 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         octaveResamplerDown.process(ratioDown, resampleBuffer48k.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
     }
     
-    std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;
+    // std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;
     // Target parameters smoothing
     current_predelay.setTargetValue(vpredelay);
     current_moddepth.setTargetValue(vmoddepth);
@@ -288,7 +319,7 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         current_ODswell.setTargetValue(0.4f);
     }
 
-    std::cout << "      [processBlock] Main DSP loop..." << std::endl;
+    // std::cout << "      [processBlock] Main DSP loop..." << std::endl;
     // --- MAIN DSP LOOP (HOST RATE) ---
     auto* channelDataL = buffer.getWritePointer (0);
     auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : channelDataL;
