@@ -43,7 +43,7 @@ static float fastInvSqrt(float number) noexcept
 
 
 
-static constexpr float fastSqrt(float x)
+static float fastSqrt(float x)
 {
     return fastInvSqrt(x) * x;
 }
