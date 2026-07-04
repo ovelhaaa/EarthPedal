@@ -5,9 +5,6 @@
 
 
 
-//extern float sdramData[50][144000];
-extern float sdramData[13][37000];
-//extern float sdramData[50][144000];
 extern unsigned int count;
 extern float hold;
 extern bool triggerClear;
@@ -23,15 +20,15 @@ public:
     int j = 0;
     float dataR = 0.;
     float dataUpperR = 0.;
+    std::vector<float> delayData;
 
     //InterpDelay () {}
 
     InterpDelay(unsigned int maxLength = 512, float initDelayTime = 0.) {
         l = maxLength;
         lDouble = static_cast<float>(maxLength);
-
-        bufferNumber = ++count;
-
+        delayData.resize(l, 0.0f);
+        
         setDelayTime(initDelayTime);
     }
 
@@ -49,7 +46,7 @@ public:
 
     inline void process() {
         //if(!triggerClear) {
-            sdramData[bufferNumber][w] = input;
+            delayData[w] = input;
             r = w - t;
             
             if (r < 0) {
@@ -66,8 +63,8 @@ public:
                 upperR += l;
             }
 
-            dataR = sdramData[bufferNumber][r];
-            dataUpperR = sdramData[bufferNumber][upperR];
+            dataR = delayData[r];
+            dataUpperR = delayData[upperR];
             
             dataR *= clearPopCancelValue;
             dataUpperR *= clearPopCancelValue;
@@ -85,7 +82,7 @@ public:
         if (j < 0) {
             j += l;
         }
-        return sdramData[bufferNumber][j];
+        return delayData[j];
     }
 
     #pragma GCC pop_options
@@ -107,7 +104,7 @@ public:
 
     void clear() {
         for(int i = 0; i < l; ++i) {
-            sdramData[bufferNumber][i] = 0.0f;
+            delayData[i] = 0.0f;
         }
         input = 0.;
         output = 0.;
