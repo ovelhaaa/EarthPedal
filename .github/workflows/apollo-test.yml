@@ -23,13 +23,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Apollo/build
-          key: ${{ runner.os }}-cmake-${{ hashFiles('Apollo/CMakeLists.txt', 'Apollo/Source/**/*.cpp', 'Apollo/Source/**/*.h', 'Apollo/Source/**/*.hpp') }}
+          key: ${{ runner.os }}-msvc-cmake-${{ hashFiles('Apollo/CMakeLists.txt', 'Apollo/Source/**/*.cpp', 'Apollo/Source/**/*.h', 'Apollo/Source/**/*.hpp') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-
+            ${{ runner.os }}-msvc-cmake-
 
       - name: Configure CMake
         working-directory: Apollo
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -B build
 
       - name: Build ApolloTest
         working-directory: Apollo
