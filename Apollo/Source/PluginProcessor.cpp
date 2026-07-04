@@ -69,7 +69,15 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     // Replace cycfi q filters with JUCE DSP IIR filters. These run inside the resampled 48kHz branch.
     eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
     eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
+    
+    juce::dsp::ProcessSpec spec { 48000.0 / resample_factor, (juce::uint32)samplesPerBlock, 1 };
+    eq1.prepare(spec);
+    eq2.prepare(spec);
+    eq1.reset();
+    eq2.reset();
 
+    overdriveLeft.Init();
+    overdriveRight.Init();
     overdriveLeft.SetDrive(0.4f);
     overdriveRight.SetDrive(0.4f);
 
