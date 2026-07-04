@@ -1,2 +1,28 @@
+# CMake build directories
 build/
+build*/
+out/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
 
+# IDEs / Visual Studio / VSCode
+.vs/
+.vscode/
+*.user
+*.suo
+*.db
+*.ipch
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+*.wav
