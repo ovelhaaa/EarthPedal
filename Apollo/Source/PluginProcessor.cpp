@@ -270,7 +270,8 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         
         octaveResamplerDown.process(ratioDown, resampleBuffer48k.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
     }
-
+    
+    std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;
     // Target parameters smoothing
     current_predelay.setTargetValue(vpredelay);
     current_moddepth.setTargetValue(vmoddepth);
@@ -287,6 +288,7 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         current_ODswell.setTargetValue(0.4f);
     }
 
+    std::cout << "      [processBlock] Main DSP loop..." << std::endl;
     // --- MAIN DSP LOOP (HOST RATE) ---
     auto* channelDataL = buffer.getWritePointer (0);
     auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : channelDataL;
