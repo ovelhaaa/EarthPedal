@@ -47,7 +47,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ApolloAudioProcessor::create
     return { params.begin(), params.end() };
 }
 
-const juce::String ApolloAudioProcessor::getName() const { return JucePlugin_Name; }
+const juce::String ApolloAudioProcessor::getName() const { return "Apollo"; }
 bool ApolloAudioProcessor::acceptsMidi() const { return false; }
 bool ApolloAudioProcessor::producesMidi() const { return false; }
 bool ApolloAudioProcessor::isMidiEffect() const { return false; }
@@ -67,8 +67,8 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     octave = std::make_unique<OctaveGenerator>(48000.0f / resample_factor);
     
     // Replace cycfi q filters with JUCE DSP IIR filters. These run inside the resampled 48kHz branch.
-    *eq1.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
-    *eq2.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
+    eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
+    eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
 
     overdriveLeft.SetDrive(0.4f);
     overdriveRight.SetDrive(0.4f);
@@ -124,9 +124,9 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     float vmodspeed = apvts.getRawParameterValue("modspeed")->load();
     float vdamp = apvts.getRawParameterValue("damp")->load();
     
-    int toggleValues0 = apvts.getRawParameterValue("time_scale")->load();
-    int effect_mode = apvts.getRawParameterValue("effect_mode")->load();
-    int footswitch_mode = apvts.getRawParameterValue("footswitch_mode")->load();
+    int toggleValues0 = static_cast<int>(std::round(apvts.getRawParameterValue("time_scale")->load()));
+    int effect_mode = static_cast<int>(std::round(apvts.getRawParameterValue("effect_mode")->load()));
+    int footswitch_mode = static_cast<int>(std::round(apvts.getRawParameterValue("footswitch_mode")->load()));
     
     bool input_diffusion = apvts.getRawParameterValue("input_diffusion")->load();
     bool octave_dry_mix = apvts.getRawParameterValue("octave_dry_mix")->load();
