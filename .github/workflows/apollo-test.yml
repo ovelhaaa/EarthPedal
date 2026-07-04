@@ -1,0 +1,52 @@
+name: Apollo DSP Validation
+
+on:
+  push:
+    paths:
+      - 'Apollo/**'
+      - '.github/workflows/apollo-test.yml'
+  pull_request:
+    paths:
+      - 'Apollo/**'
+      - '.github/workflows/apollo-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test-dsp:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache CMake build directory
+        uses: actions/cache@v4
+        with:
+          path: Apollo/build
+          key: ${{ runner.os }}-cmake-${{ hashFiles('Apollo/CMakeLists.txt', 'Apollo/Source/**/*.cpp', 'Apollo/Source/**/*.h', 'Apollo/Source/**/*.hpp') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-
+
+      - name: Configure CMake
+        working-directory: Apollo
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build ApolloTest
+        working-directory: Apollo
+        run: cmake --build build --config Release --target ApolloTest
+
+      - name: Run ApolloTest
+        working-directory: Apollo
+        run: .\build\Release\ApolloTest.exe
+
+      - name: Upload WAV Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-test-wavs
+          path: |
+            Apollo/test_out_44100.wav
+            Apollo/test_out_48000.wav
+            Apollo/test_out_96000.wav
+          if-no-files-found: error
