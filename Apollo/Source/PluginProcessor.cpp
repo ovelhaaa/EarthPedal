@@ -466,10 +466,10 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             effectRightOut = reverbRightOut;
         }
         // Final Mix (using delayed dry signal)
-        float delayedInputL = dryDelayL.popSample((int)dryDelayL.getDelay());
-        float delayedInputR = dryDelayR.popSample((int)dryDelayR.getDelay());
-        dryDelayL.pushSample(inputL);
-        dryDelayR.pushSample(inputR);
+        float delayedInputL = dryDelayL.popSample(0, dryDelayL.getDelay());
+        float delayedInputR = dryDelayR.popSample(0, dryDelayR.getDelay());
+        dryDelayL.pushSample(0, inputL);
+        dryDelayR.pushSample(0, inputR);
 
         float leftOutput = delayedInputL * dryMix + effectLeftOut * wetMix * 0.4f;
         float rightOutput = delayedInputR * dryMix + effectRightOut * wetMix * 0.4f;
