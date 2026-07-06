@@ -21,7 +21,7 @@ ApolloAudioProcessor::ApolloAudioProcessor()
 ApolloAudioProcessor::~ApolloAudioProcessor()
 {
     if (measure_count_in > 0) {
-        // double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
+        double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
         double rms_out = std::sqrt(energy_out_above_24k / measure_count_out);
         std::cout << "[Diagnostic 1a] SR=" << getSampleRate() << " | RMS > 24kHz IN: " << rms_in << " | RMS > 24kHz OUT (after Lagrange): " << rms_out << std::endl;
     }
@@ -249,6 +249,15 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             monoPtr[i] = s;
         }
 
+        // Measure energy > 24kHz IN (after LPF)
+        for (int i = 0; i < numSamples; ++i) {
+            float x = monoInput.getSample(0, i);
+            float y = 0.5f * (x - prev_x_in);
+            prev_x_in = x;
+            energy_in_above_24k += (double)(y * y);
+            measure_count_in++;
+        }
+
         // Append to slideUp FIFO
         slideUp.copyFrom(0, slideUpValid, monoInput, 0, 0, numSamples);
         slideUpValid += numSamples;
@@ -265,6 +274,22 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         if (samples48k_to_generate > 0) {
             // Resample Up to 48kHz
             octaveResamplerUp.process(ratioUp, slideUp.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k_to_generate);
+
+            if (!printed1c) {
+                std::cout << "[Diagnostic 1b] octave_dry_mix applied INSIDE the 48kHz resampled loop. Mix is calculated over 48k buffers." << std::endl;
+                std::cout << "[Diagnostic 1c] SR=" << getSampleRate() << " | Host numSamples: " << numSamples << " | resampled samples48k_to_generate: " << samples48k_to_generate << " | ratioUp: " << ratioUp << std::endl;
+                std::cout << "                decimator chunk size: 6 | samples48k % 6 = " << (samples48k_to_generate % 6) << std::endl;
+                printed1c = true;
+            }
+
+            // Measure energy > 24kHz OUT
+            for (int i = 0; i < samples48k_to_generate; ++i) {
+                float x = resampleBuffer48k.getSample(0, i);
+                float y = 0.5f * (x - prev_x_out);
+                prev_x_out = x;
+                energy_out_above_24k += (double)(y * y);
+                measure_count_out++;
+            }
 
             // Calculate exactly how many input samples were consumed
             double exactConsumedUp = samples48k_to_generate * ratioUp;
