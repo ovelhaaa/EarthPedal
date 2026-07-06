@@ -41,10 +41,10 @@ void runTestForSampleRate(double sampleRate, const String& filename)
 
     // std::cout << "  [trace] Setting APVTS parameters..." << std::endl;
     // Force parameters to a state that uses all DSP (octave on, reverb on, overdrive on)
-    processor.apvts.getParameter("effect_mode")->setValueNotifyingHost(0.5f); // Up Octave
+    processor.apvts.getParameter("effect_mode")->setValueNotifyingHost(0.333f); // Up Octave
     processor.apvts.getParameter("footswitch_mode")->setValueNotifyingHost(0.5f); // Overdrive
     processor.apvts.getParameter("momentary_effect")->setValueNotifyingHost(1.0f); // On
-    processor.apvts.getParameter("mix")->setValueNotifyingHost(0.0f); // 0% Wet - TEST OCTAVE DIRECTLY
+    processor.apvts.getParameter("mix")->setValueNotifyingHost(0.5f); // 50% Wet - TEST COMB FILTER
     processor.apvts.getParameter("decay")->setValueNotifyingHost(0.7f); // moderate decay
 
     // std::cout << "  [trace] Processing audio blocks..." << std::endl;
