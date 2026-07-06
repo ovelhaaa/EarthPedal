@@ -1,0 +1,78 @@
+name: Apollo Release Build
+
+on:
+  push:
+    tags:
+      - 'apollo-v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
+
+      - name: Cache JUCE and Build
+        uses: actions/cache@v4
+        with:
+          path: Apollo/build
+          key: ${{ runner.os }}-juce-${{ hashFiles('Apollo/Source/**', 'Apollo/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-juce-
+
+      - name: Configure CMake
+        run: cmake -B Apollo/build -S Apollo -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3 and Standalone (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build Apollo/build --config Release --target Apollo_All
+
+      - name: Build VST3, AU, and Standalone (macOS)
+        if: runner.os == 'macOS'
+        run: cmake --build Apollo/build --config Release --target Apollo_All
+
+      - name: Package Windows Artifacts
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p package_windows
+          cp -r Apollo/build/Apollo_artefacts/Release/VST3/Apollo.vst3 package_windows/
+          cp Apollo/build/Apollo_artefacts/Release/Standalone/Apollo.exe package_windows/ 2>/dev/null || true
+          cd package_windows
+          Compress-Archive -Path * -DestinationPath ../apollo-windows-bundle.zip
+        shell: pwsh
+
+      - name: Package macOS Artifacts
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p package_macos
+          cp -r Apollo/build/Apollo_artefacts/Release/VST3/Apollo.vst3 package_macos/
+          cp -r Apollo/build/Apollo_artefacts/Release/AU/Apollo.component package_macos/ 2>/dev/null || true
+          cp -r Apollo/build/Apollo_artefacts/Release/Standalone/Apollo.app package_macos/ 2>/dev/null || true
+          cd package_macos
+          zip -r ../apollo-macos-bundle.zip *
+        shell: bash
+
+      - name: Upload Windows Artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-windows-bundle
+          path: apollo-windows-bundle.zip
+
+      - name: Upload macOS Artifacts
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-macos-bundle
+          path: apollo-macos-bundle.zip
