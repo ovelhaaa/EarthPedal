@@ -143,6 +143,24 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     
     int max48kSamples = (int)(samplesPerBlock * (48000.0 / sampleRate)) + 32;
     resampleBuffer48k.setSize(1, max48kSamples);
+    
+    // Latency compensation for the Dry signal
+    juce::dsp::ProcessSpec hostSpecDelay { sampleRate, (juce::uint32)samplesPerBlock, 1 };
+    dryDelayL.prepare(hostSpecDelay);
+    dryDelayR.prepare(hostSpecDelay);
+    
+    // Total 48kHz latency: 64 (slideDown) + 22 (FIR dec/int) = 86 samples at 48kHz.
+    // Plus ~1.5 for Lagrange up/down = ~89 samples at 48kHz.
+    // We convert this 48kHz-domain latency to host sample rate latency:
+    float latencySamples = 89.0f * (float)(sampleRate / 48000.0);
+    // Add additional latency for the anti-alias IIR filters (approx 8 samples)
+    latencySamples += 8.0f; 
+    
+    dryDelayL.setDelay(latencySamples);
+    dryDelayR.setDelay(latencySamples);
+    
+    // Report latency to host (if you want the DAW to compensate)
+    setLatencySamples((int)latencySamples);
 }
 
 void ApolloAudioProcessor::releaseResources() {}
@@ -447,9 +465,14 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             effectLeftOut = reverbLeftOut;
             effectRightOut = reverbRightOut;
         }
+        // Final Mix (using delayed dry signal)
+        float delayedInputL = dryDelayL.popSample((int)dryDelayL.getDelay());
+        float delayedInputR = dryDelayR.popSample((int)dryDelayR.getDelay());
+        dryDelayL.pushSample(inputL);
+        dryDelayR.pushSample(inputR);
 
-        float leftOutput = inputL * dryMix + effectLeftOut * wetMix * 0.4f;
-        float rightOutput = inputR * dryMix + effectRightOut * wetMix * 0.4f;
+        float leftOutput = delayedInputL * dryMix + effectLeftOut * wetMix * 0.4f;
+        float rightOutput = delayedInputR * dryMix + effectRightOut * wetMix * 0.4f;
 
         // Apply bypass crossfade
         channelDataL[i] = inputL * fade + leftOutput * (1.0f - fade);

@@ -55,7 +55,9 @@ public: float prev_x_in = 0.0f; float prev_x_out = 0.0f; double energy_in_above_
     juce::AudioBuffer<float> resampleBuffer48k;
     
     // Anti-aliasing filter before downsampling (8th order = 4 biquads)
-    std::array<juce::dsp::IIR::Filter<float>, 4> antiAliasFilters;
+    juce::dsp::IIR::Filter<float> antiAliasFilters[4];
+    juce::dsp::DelayLine<float> dryDelayL { 4096 };
+    juce::dsp::DelayLine<float> dryDelayR { 4096 };
 
     // Sliding window FIFOs for continuous resampling
     juce::AudioBuffer<float> slideUp;
