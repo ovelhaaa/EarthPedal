@@ -24,9 +24,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Apollo/build
-          key: ${{ runner.os }}-juce-${{ hashFiles('Apollo/Source/**', 'Apollo/CMakeLists.txt') }}
+          key: ${{ runner.os }}-juce-v2-${{ hashFiles('Apollo/Source/**', 'Apollo/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-juce-
+            ${{ runner.os }}-juce-v2-
 
       - name: Configure CMake
         run: cmake -B Apollo/build -S Apollo -DCMAKE_BUILD_TYPE=Release
