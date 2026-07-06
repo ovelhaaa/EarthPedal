@@ -116,35 +116,33 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     octaveResamplerUp.reset();
     octaveResamplerDown.reset();
     
-    // Sliding Window Buffers (size ~ 4096 to be extremely safe for block jitter)
+    // Anti-alias filter (8th order Butterworth LPF)
+    // Cutoff: min(23000.0, sampleRate * 0.45)
+    double cutoff = juce::jmin(23000.0, sampleRate * 0.45);
+    auto filterCoeffs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(cutoff, sampleRate, 8);
+    juce::dsp::ProcessSpec hostSpec { sampleRate, (juce::uint32)samplesPerBlock, 1 };
+    
+    for (int i = 0; i < 4; ++i) {
+        if (i < filterCoeffs.size())
+            antiAliasFilters[i].coefficients = filterCoeffs[i];
+        antiAliasFilters[i].prepare(hostSpec);
+        antiAliasFilters[i].reset();
+    }
+    
+    // Sliding window FIFOs
     slideUp.setSize(1, 4096);
     slideUp.clear();
     slideUpValid = 0;
+    phaseUp = 0.0;
     
     slideDown.setSize(1, 4096);
     slideDown.clear();
+    // Pre-fill with latency to absorb fractional block jitter (e.g., 64 samples at 48kHz)
+    slideDownValid = 64;
+    phaseDown = 0.0;
     
-    // Pre-fill slideDown with 64 samples of latency (at 48kHz) to prevent downsampler underrun
-    int initialLatency = 64;
-    slideDownValid = initialLatency;
-    
-    // Temporary processing buffer for 48kHz
     int max48kSamples = (int)(samplesPerBlock * (48000.0 / sampleRate)) + 32;
-    resampleBuffer48kTemp.setSize(1, max48kSamples);
-    
-    // Anti-Aliasing Filter Cutoff
-    // Destination is 48kHz, so Nyquist is 24kHz.
-    // Cutoff = min(23000 Hz, HostSampleRate * 0.45)
-    double cutoffFreq = juce::jmin(23000.0, sampleRate * 0.45);
-    
-    // 8th-order Butterworth Low-Pass filter (cascade of 4 biquads)
-    auto coefs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(cutoffFreq, sampleRate, 8);
-    for (int i = 0; i < 4; ++i) {
-        if (i < coefs.size()) {
-            *antiAliasFilters[i].state = *coefs[i];
-            antiAliasFilters[i].reset();
-        }
-    }
+    resampleBuffer48k.setSize(1, max48kSamples);
 }
 
 void ApolloAudioProcessor::releaseResources() {}
@@ -234,50 +232,57 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     octaveOutTemp.clear();
 
     if (effect_mode != 0) {
-        // --- 1. Apply Anti-Aliasing Filter and Append to slideUp ---
-        int spaceUp = slideUp.getNumSamples() - slideUpValid;
-        int copyUp = juce::jmin(numSamples, spaceUp);
-        for (int i = 0; i < copyUp; ++i) {
-            float s = buffer.getSample(0, i);
-            if (buffer.getNumChannels() > 1) {
-                s = (s + buffer.getSample(1, i)) * 0.5f;
-            }
-            // 8th order filter cascade
-            for (int f = 0; f < 4; ++f) {
-                s = antiAliasFilters[f].processSample(s);
-            }
-            slideUp.setSample(0, slideUpValid + i, s);
+        // Average inputs for the mono octave path
+        juce::AudioBuffer<float> monoInput(1, numSamples);
+        monoInput.copyFrom(0, 0, buffer, 0, 0, numSamples);
+        if (buffer.getNumChannels() > 1) {
+            monoInput.addFrom(0, 0, buffer, 1, 0, numSamples);
+            monoInput.applyGain(0.5f);
         }
-        slideUpValid += copyUp;
 
-        // --- 2. Calculate how many 48k samples to generate ---
+        // Apply anti-aliasing filter (8th order = 4 biquads) in-place
+        auto* monoPtr = monoInput.getWritePointer(0);
+        for (int i = 0; i < numSamples; ++i) {
+            float s = monoPtr[i];
+            for (int f = 0; f < 4; ++f)
+                s = antiAliasFilters[f].processSample(s);
+            monoPtr[i] = s;
+        }
+
+        // Append to slideUp FIFO
+        slideUp.copyFrom(0, slideUpValid, monoInput, 0, 0, numSamples);
+        slideUpValid += numSamples;
+
+        // Calculate how many 48kHz samples we can generate (leave 4 samples for interpolation margin)
         double ratioUp = getSampleRate() / 48000.0;
-        // We need at least 4 samples margin in slideUp for interpolation
-        int maxConsume = slideUpValid - 4;
-        int samples48k_to_generate = maxConsume > 0 ? (int)(maxConsume / ratioUp) : 0;
-        
-        if (samples48k_to_generate > resampleBuffer48kTemp.getNumSamples()) {
-            samples48k_to_generate = resampleBuffer48kTemp.getNumSamples(); // Safety bound
+        int samples48k_to_generate = 0;
+        if (slideUpValid > 4) {
+            // How many output samples can we produce before phaseUp + (N * ratioUp) > (slideUpValid - 4)?
+            double maxConsumed = (double)(slideUpValid - 4);
+            samples48k_to_generate = (int)std::floor((maxConsumed - phaseUp) / ratioUp);
         }
 
         if (samples48k_to_generate > 0) {
-            // --- 3. Upsample ---
-            octaveResamplerUp.process(ratioUp, slideUp.getReadPointer(0), resampleBuffer48kTemp.getWritePointer(0), samples48k_to_generate);
+            // Resample Up to 48kHz
+            octaveResamplerUp.process(ratioUp, slideUp.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k_to_generate);
+
+            // Calculate exactly how many input samples were consumed
+            double exactConsumedUp = samples48k_to_generate * ratioUp;
+            int consumedUp = (int)std::floor(phaseUp + exactConsumedUp);
+            phaseUp = (phaseUp + exactConsumedUp) - consumedUp;
             
-            // --- 4. Shift slideUp left ---
-            int consumedUp = (int)(samples48k_to_generate * ratioUp);
+            if (consumedUp > slideUpValid) consumedUp = slideUpValid;
+            
+            // Shift slideUp
             int remainingUp = slideUpValid - consumedUp;
-            if (remainingUp > 0 && remainingUp < slideUp.getNumSamples()) {
-                slideUp.copyFrom(0, 0, slideUp, 0, consumedUp, remainingUp);
+            for (int i = 0; i < remainingUp; ++i) {
+                slideUp.setSample(0, i, slideUp.getSample(0, consumedUp + i));
             }
             slideUpValid = remainingUp;
 
-            // --- 5. Process 48k effects ---
-            int spaceDown = slideDown.getNumSamples() - slideDownValid;
-            int process48k = juce::jmin(samples48k_to_generate, spaceDown);
-            
-            for (int i = 0; i < process48k; ++i) {
-                float inSample = resampleBuffer48kTemp.getSample(0, i);
+            // Process Octave at 48kHz
+            for (int i = 0; i < samples48k_to_generate; ++i) {
+                float inSample = resampleBuffer48k.getSample(0, i);
                 buff[bin_counter] = inSample;
                 
                 if (bin_counter > 4) {
@@ -311,30 +316,38 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
                 bin_counter += 1;
                 if (bin_counter > 5) bin_counter = 0;
                 
-                slideDown.setSample(0, slideDownValid + i, buff_out[bin_counter]);
+                resampleBuffer48k.setSample(0, i, buff_out[bin_counter]);
             }
-            slideDownValid += process48k;
+
+            // Append processed 48kHz samples to slideDown FIFO
+            slideDown.copyFrom(0, slideDownValid, resampleBuffer48k, 0, 0, samples48k_to_generate);
+            slideDownValid += samples48k_to_generate;
         }
 
-        // --- 6. Downsample to Host ---
+        // Resample Down to Host Sample Rate (we MUST produce EXACTLY numSamples)
         double ratioDown = 48000.0 / getSampleRate();
         
-        // Safety: Do we have enough samples in slideDown to produce numSamples?
-        int required48k = (int)(numSamples * ratioDown) + 4;
+        // We need (numSamples * ratioDown) + 4 samples
+        double exactConsumedDown = numSamples * ratioDown;
+        int required48k = (int)std::floor(phaseDown + exactConsumedDown) + 4;
+        
         if (slideDownValid >= required48k) {
             octaveResamplerDown.process(ratioDown, slideDown.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
             
-            int consumedDown = (int)(numSamples * ratioDown);
+            int consumedDown = (int)std::floor(phaseDown + exactConsumedDown);
+            phaseDown = (phaseDown + exactConsumedDown) - consumedDown;
+            
+            if (consumedDown > slideDownValid) consumedDown = slideDownValid;
+            
             int remainingDown = slideDownValid - consumedDown;
-            if (remainingDown > 0 && remainingDown < slideDown.getNumSamples()) {
-                slideDown.copyFrom(0, 0, slideDown, 0, consumedDown, remainingDown);
+            for (int i = 0; i < remainingDown; ++i) {
+                slideDown.setSample(0, i, slideDown.getSample(0, consumedDown + i));
             }
             slideDownValid = remainingDown;
         } else {
-            // Underrun (should not happen if initialLatency is enough)
+            // Underrun! The pre-filled latency should prevent this in steady state.
             octaveOutTemp.clear();
         }
-    }
     }
     
     // std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;
