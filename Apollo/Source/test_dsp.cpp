@@ -44,7 +44,7 @@ void runTestForSampleRate(double sampleRate, const String& filename)
     processor.apvts.getParameter("effect_mode")->setValueNotifyingHost(0.5f); // Up Octave
     processor.apvts.getParameter("footswitch_mode")->setValueNotifyingHost(0.5f); // Overdrive
     processor.apvts.getParameter("momentary_effect")->setValueNotifyingHost(1.0f); // On
-    processor.apvts.getParameter("mix")->setValueNotifyingHost(1.0f); // 100% Wet
+    processor.apvts.getParameter("mix")->setValueNotifyingHost(0.0f); // 0% Wet - TEST OCTAVE DIRECTLY
     processor.apvts.getParameter("decay")->setValueNotifyingHost(0.7f); // moderate decay
 
     // std::cout << "  [trace] Processing audio blocks..." << std::endl;
