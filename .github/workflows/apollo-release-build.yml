@@ -44,7 +44,9 @@ jobs:
         run: |
           mkdir -p package_windows
           cp -r Apollo/build/Apollo_artefacts/Release/VST3/Apollo.vst3 package_windows/
-          cp Apollo/build/Apollo_artefacts/Release/Standalone/Apollo.exe package_windows/ 2>/dev/null || true
+          if (Test-Path Apollo/build/Apollo_artefacts/Release/Standalone/Apollo.exe) {
+            cp Apollo/build/Apollo_artefacts/Release/Standalone/Apollo.exe package_windows/
+          }
           cd package_windows
           Compress-Archive -Path * -DestinationPath ../apollo-windows-bundle.zip
         shell: pwsh
