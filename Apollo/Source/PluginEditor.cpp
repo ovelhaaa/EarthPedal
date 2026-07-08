@@ -22,7 +22,7 @@ static void setupToggle(juce::ToggleButton& btn, const juce::String& text)
 ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (640, 420);
+    setSize (700, 420);
     setLookAndFeel (&customLookAndFeel);
 
     // --- Title ---
@@ -70,23 +70,34 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     attachModDepth = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "moddepth", knobModDepth);
     addAndMakeVisible(lblModDepth);
 
+    addAndMakeVisible(knobEq1); setupKnob(knobEq1, lblEq1, "Octave High");
+    attachEq1 = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "eq1_gain", knobEq1);
+    addAndMakeVisible(lblEq1);
+
+    addAndMakeVisible(knobEq2); setupKnob(knobEq2, lblEq2, "Octave Low");
+    attachEq2 = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "eq2_gain", knobEq2);
+    addAndMakeVisible(lblEq2);
+
     // --- ComboBoxes ---
     addAndMakeVisible(lblTimeScale);
     lblTimeScale.setText("Time Scale", juce::dontSendNotification);
     lblTimeScale.setColour(juce::Label::textColourId, juce::Colour(0xffffffff));
     addAndMakeVisible(comboTimeScale);
+    comboTimeScale.addItemList({"Small", "Medium", "Large"}, 1);
     attachTimeScale = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "time_scale", comboTimeScale);
 
     addAndMakeVisible(lblEffectMode);
     lblEffectMode.setText("Effect Mode", juce::dontSendNotification);
     lblEffectMode.setColour(juce::Label::textColourId, juce::Colour(0xffffffff));
     addAndMakeVisible(comboEffectMode);
+    comboEffectMode.addItemList({"None", "Up Octave", "Down Octave", "Both Octaves"}, 1);
     attachEffectMode = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "effect_mode", comboEffectMode);
 
     addAndMakeVisible(lblFootswitchMode);
     lblFootswitchMode.setText("Switch Mode", juce::dontSendNotification);
     lblFootswitchMode.setColour(juce::Label::textColourId, juce::Colour(0xffffffff));
     addAndMakeVisible(comboFootswitchMode);
+    comboFootswitchMode.addItemList({"Freeze", "Overdrive", "Effect"}, 1);
     attachFootswitchMode = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "footswitch_mode", comboFootswitchMode);
 
     // --- Toggle Buttons ---
@@ -140,14 +151,14 @@ void ApolloAudioProcessorEditor::resized()
 
     // Left Panel - Mix
     groupMix.setBounds(20, 50, 90, 330);
-    faderMix.setBounds(35, 75, 60, 260);
-    lblMix.setBounds(25, 340, 80, 20);
+    faderMix.setBounds(15, 30, 60, 260);
+    lblMix.setBounds(5, 300, 80, 20);
 
     // Center Panel - Knobs
-    int startX = 140;
+    int startX = 130;
     int startY = 80;
     int knobSize = 75;
-    int spacingX = 95;
+    int spacingX = 85;
     int spacingY = 110;
 
     // Row 1
@@ -160,6 +171,9 @@ void ApolloAudioProcessorEditor::resized()
     knobDamp.setBounds(startX + 2 * spacingX, startY, knobSize, knobSize);
     lblDamp.setBounds(startX + 2 * spacingX, startY - 20, knobSize, 20);
 
+    knobEq1.setBounds(startX + 3 * spacingX, startY, knobSize, knobSize);
+    lblEq1.setBounds(startX + 3 * spacingX, startY - 20, knobSize, 20);
+
     // Row 2
     knobModSpeed.setBounds(startX, startY + spacingY, knobSize, knobSize);
     lblModSpeed.setBounds(startX, startY + spacingY - 20, knobSize, 20);
@@ -167,11 +181,14 @@ void ApolloAudioProcessorEditor::resized()
     knobModDepth.setBounds(startX + spacingX, startY + spacingY, knobSize, knobSize);
     lblModDepth.setBounds(startX + spacingX, startY + spacingY - 20, knobSize, 20);
 
+    knobEq2.setBounds(startX + 2 * spacingX, startY + spacingY, knobSize, knobSize);
+    lblEq2.setBounds(startX + 2 * spacingX, startY + spacingY - 20, knobSize, 20);
+
     // Bypass button next to row 2
-    btnBypass.setBounds(startX + 2 * spacingX, startY + spacingY + 15, knobSize + 10, 40);
+    btnBypass.setBounds(startX + 3 * spacingX, startY + spacingY + 15, knobSize + 10, 40);
 
     // Right Panel - Combos and Toggles
-    int rightX = 460;
+    int rightX = 520;
     int comboY = 80;
     int comboWidth = 140;
     int comboHeight = 24;

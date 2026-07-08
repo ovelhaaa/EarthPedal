@@ -95,6 +95,8 @@ public: float prev_x_in = 0.0f; float prev_x_out = 0.0f; double energy_in_above_
     float setOD = 0.4f;
     float pmix = -1.0f;
     float pdamp = -1.0f;
+    float peq1 = -999.0f;
+    float peq2 = -999.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApolloAudioProcessor)
 };

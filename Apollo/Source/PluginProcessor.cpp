@@ -38,6 +38,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout ApolloAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"moddepth", 1}, "Mod Depth", 0.0f, 1.0f, 0.0625f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"modspeed", 1}, "Mod Speed", 0.0f, 1.0f, 0.0466f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"damp", 1}, "Damp", 0.0f, 1.0f, 0.5f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"eq1_gain", 1}, "EQ1 Gain", -24.0f, 24.0f, -11.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"eq2_gain", 1}, "EQ2 Gain", -24.0f, 24.0f, 5.0f));
 
     // Toggle Switches
     params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"time_scale", 1}, "Time Scale", juce::StringArray{"Small", "Medium", "Large"}, 2)); // Default Large
@@ -190,6 +192,8 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     float vmoddepth = apvts.getRawParameterValue("moddepth")->load();
     float vmodspeed = apvts.getRawParameterValue("modspeed")->load();
     float vdamp = apvts.getRawParameterValue("damp")->load();
+    float veq1 = apvts.getRawParameterValue("eq1_gain")->load();
+    float veq2 = apvts.getRawParameterValue("eq2_gain")->load();
     
     int toggleValues0 = static_cast<int>(std::round(apvts.getRawParameterValue("time_scale")->load()));
     int effect_mode = static_cast<int>(std::round(apvts.getRawParameterValue("effect_mode")->load()));
@@ -237,6 +241,15 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             reverb.setInputFilterLowCutoffPitch(9.0f * reverbDampLow);
         }
         pdamp = vdamp;
+    }
+    
+    if (peq1 != veq1) {
+        eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(veq1));
+        peq1 = veq1;
+    }
+    if (peq2 != veq2) {
+        eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(veq2));
+        peq2 = veq2;
     }
 
     reverb.enableInputDiffusion(input_diffusion);

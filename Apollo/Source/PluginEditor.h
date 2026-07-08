@@ -23,9 +23,9 @@ private:
     juce::Label lblMix;
 
     // Knobs
-    juce::Slider knobDecay, knobPredelay, knobDamp, knobModSpeed, knobModDepth;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachDecay, attachPredelay, attachDamp, attachModSpeed, attachModDepth;
-    juce::Label lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth;
+    juce::Slider knobDecay, knobPredelay, knobDamp, knobModSpeed, knobModDepth, knobEq1, knobEq2;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachDecay, attachPredelay, attachDamp, attachModSpeed, attachModDepth, attachEq1, attachEq2;
+    juce::Label lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth, lblEq1, lblEq2;
 
     // ComboBoxes
     juce::ComboBox comboTimeScale, comboEffectMode, comboFootswitchMode;
