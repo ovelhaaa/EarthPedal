@@ -41,7 +41,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ApolloAudioProcessor::create
 
     // Toggle Switches
     params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"time_scale", 1}, "Time Scale", juce::StringArray{"Small", "Medium", "Large"}, 2)); // Default Large
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"effect_mode", 1}, "Effect Mode", juce::StringArray{"None", "Up Octave", "Down Octave"}, 0)); // Default None
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"effect_mode", 1}, "Effect Mode", juce::StringArray{"None", "Up Octave", "Down Octave", "Both Octaves"}, 0)); // Default None
     params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"footswitch_mode", 1}, "Momentary Mode", juce::StringArray{"Freeze", "Overdrive", "Effect"}, 0));
 
     // Dip Switches & Toggles
@@ -335,9 +335,10 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
                     float octave_mix = 0.0f;
                     octave->update(sample);
 
-                    if (effect_mode != 0)
+                    if (effect_mode == 1 || effect_mode == 3) {
                         octave_mix += octave->up1() * 2.0f;
-                    if (effect_mode == 2) {
+                    }
+                    if (effect_mode == 2 || effect_mode == 3) {
                         octave_mix += octave->down1() * 2.0f;
                         octave_mix += octave->down2() * 2.0f;
                     }
