@@ -96,7 +96,7 @@ do parâmetro, não uma recomendação de produto.
 
 | ID interno / nome atual de automação | Rótulo visível proposto | Grupo | Unidade/formatação pretendida | Tooltip curto | Padrão | Dependências e indisponibilidade |
 | --- | --- | --- | --- | --- | --- | --- |
-| `predelay` / `Pre-Delay` | **Pre-delay** | REVERB | `0–1000 ms`; conversão linear confirmada pelo valor em segundos enviado a `setPreDelay` | “Atrasa a entrada do reverb.” | `0 ms` (`0.0`) | Sempre disponível; em bypass continua legível/automatizável, sem efeito audível enquanto bypassado. |
+| `predelay` / `Pre-Delay` | **Pre-delay** | REVERB | `0–1000 ms`; conversão linear para segundos enviada a `setPreDelay`. O DSP reserva um segundo completo no sample rate ativo. | “Atrasa a entrada do reverb.” | `0 ms` (`0.0`) | Sempre disponível; em bypass continua legível/automatizável, sem efeito audível enquanto bypassado. |
 | `mix` / `Mix` | **Mix** | OUTPUT | `Dry ← 0–100% → Wet`; manter a escala do parâmetro, sem prometer crossfade linear | “Equilibra sinal direto e reverb.” | centro (`0.5`) | Sempre disponível; bypass não o desabilita. |
 | `decay` / `Decay` | **Decay** | REVERB | `%` (`0–100%`) até validação de escala musical | “Define quanto tempo o reverb sustenta.” | `87.7%` (`0.877`) | Durante Freeze ativo, o DSP força a sustentação; manter o valor visível como “valor retomado ao soltar”. |
 | `moddepth` / `Mod Depth` | **Mod Depth** | REVERB | `%` (`0–100%`) | “Define a intensidade do movimento.” | `6.25%` (`0.0625`) | Sempre disponível. |
@@ -149,7 +149,7 @@ automatizável.
 | Shelves `eq1_gain` / `eq2_gain` | São filtros high-shelf e low-shelf, não níveis independentes de vozes. | Revisão de produto/auditiva para aprovar “Octave High Shelf” e “Octave Low Shelf”, ou nomear por resultado musical sem ocultar que são filtros. | **Provisório.** |
 | Tone no centro | O DSP muda entre caminhos de high cut e low cut em `0.5`; a equivalência perceptiva no centro não foi medida. | Sweep auditivo e revisão de texto para confirmar “centro/neutro”, sem exibir frequências como especificação de UX. | **Pendente.** |
 | Mod Rate em Hz | O processador mapeia o parâmetro a um valor passado ao tank, mas a unidade musical final não está documentada. | Confirmar contrato da LFO/tank e, se necessário, medir a taxa resultante por sample rate. | **Pendente; usar %.** |
-| Pre-delay | O processador passa `predelay` diretamente como segundos a `setPreDelay`; o método multiplica por sample rate. | Confirmar no teste de UI que a formatação adotada é `valor × 1000` e que o limite do delay aceita 1 s em todos os sample rates suportados. | **Confirmado para proposta ms; validação de regressão pendente.** |
+| Pre-delay | O processador passa `predelay` diretamente como segundos a `setPreDelay`; o método multiplica por sample rate e redimensiona o buffer para acomodar 1 s mais uma amostra de guarda. | Confirmar no teste de UI que a formatação adotada é `valor × 1000`; o teste DSP deve cobrir a capacidade de 1 s nos sample rates suportados. | **Confirmado para proposta ms; regressão DSP coberta em 44,1, 48 e 96 kHz.** |
 | Fase 0 ausente | Arquivo solicitado não está no checkout. | Recuperar o documento e reconciliar inventário, decisões e terminologia com esta especificação. | **Pendente de fonte.** |
 
 ## 7. Critérios de aceite para a Fase 2
