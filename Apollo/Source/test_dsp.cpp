@@ -1,8 +1,20 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_core/juce_core.h>
+#include <cmath>
+#include <stdexcept>
 #include "PluginProcessor.h"
 
 using namespace juce;
+
+void verifyPreDelayCapacity(double sampleRate)
+{
+    Dattorro reverb;
+    reverb.setSampleRate(static_cast<float>(sampleRate));
+
+    const auto expectedCapacity = static_cast<size_t>(std::ceil(sampleRate)) + 1;
+    if (reverb.preDelay.delayData.size() < expectedCapacity)
+        throw std::runtime_error("Pre-delay buffer cannot represent one second at this sample rate");
+}
 
 void runTestForSampleRate(double sampleRate, const String& filename)
 {
@@ -83,9 +95,11 @@ int main(int argc, char* argv[])
     juce::ScopedJuceInitialiser_GUI guiInitialiser;
     // std::cout << "Starting Apollo DSP Validation Tests..." << std::endl;
 
-    runTestForSampleRate(44100.0, "test_out_44100.wav");
-    runTestForSampleRate(48000.0, "test_out_48000.wav");
-    runTestForSampleRate(96000.0, "test_out_96000.wav");
+    for (const auto sampleRate : { 44100.0, 48000.0, 96000.0 })
+    {
+        verifyPreDelayCapacity(sampleRate);
+        runTestForSampleRate(sampleRate, "test_out_" + String(static_cast<int>(sampleRate)) + ".wav");
+    }
 
     // std::cout << "All tests finished." << std::endl;
     return 0;
