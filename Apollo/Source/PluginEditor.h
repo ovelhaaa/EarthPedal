@@ -13,7 +13,7 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     bool keyPressed (const juce::KeyPress&) override;
-    bool keyStateChanged (bool isKeyDown) override;
+    bool keyStateChanged (bool keyIsDown) override;
     void focusLost (FocusChangeType cause) override;
 
 private:
