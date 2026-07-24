@@ -136,6 +136,12 @@ void ApolloLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton&
     g.setColour(state ? juce::Colour(0xff000000) : juce::Colour(0xffaaaaaa));
     g.setFont(juce::Font(isBypass ? 15.0f : 13.0f).withStyle(isBypass ? juce::Font::bold : juce::Font::plain));
     g.drawText(button.getButtonText(), bounds, juce::Justification::centred, true);
+
+    if (button.hasKeyboardFocus (true))
+    {
+        g.setColour (juce::Colour (0xffffa13b));
+        g.drawRoundedRectangle (bounds.reduced (0.5f), 4.0f, 1.5f);
+    }
 }
 
 void ApolloLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool isButtonDown,
@@ -159,4 +165,10 @@ void ApolloLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, 
     
     g.setColour (findColour (juce::ComboBox::arrowColourId).withAlpha ((box.isEnabled() ? 0.9f : 0.2f)));
     g.strokePath (path, juce::PathStrokeType (2.0f));
+
+    if (box.hasKeyboardFocus (true))
+    {
+        g.setColour (juce::Colour (0xffffa13b));
+        g.drawRoundedRectangle (boxBounds.toFloat().reduced (1.5f), cornerSize, 1.5f);
+    }
 }
