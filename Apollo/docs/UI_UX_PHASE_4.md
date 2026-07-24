@@ -6,6 +6,12 @@ A Fase 4 reforça acessibilidade básica, navegação por teclado, foco visual,
 legibilidade e redimensionamento do editor sem alterar DSP, parâmetros APVTS,
 ranges, defaults, serialização, attachments ou configuração de formatos.
 
+Uma representação vetorial do estado padrão da interface atual está disponível
+em [`APOLLO_INTERFACE.svg`](APOLLO_INTERFACE.svg). O desenho usa o tamanho-base
+`900 x 620`, a geometria do `resized()` e os defaults definidos no processor;
+ele serve como referência visual versionável, não como substituto de uma captura
+do plugin executada em um host específico.
+
 ## Acessibilidade e teclado
 
 - Controles visíveis automatizáveis recebem foco por teclado quando o JUCE 8 do
