@@ -4,6 +4,21 @@
 #include "ApolloLookAndFeel.h"
 #include "PluginProcessor.h"
 
+// Keeps the existing automatable boolean parameter, but makes a mouse/keyboard
+// gesture behave like a gate instead of a latching switch.
+class MomentaryGateButton : public juce::ToggleButton
+{
+public:
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    bool keyPressed (const juce::KeyPress&) override;
+    bool keyStateChanged (bool isKeyDown) override;
+    void focusLost (FocusChangeType cause) override;
+
+private:
+    bool gateKeyIsDown = false;
+};
+
 class ApolloAudioProcessorEditor : public juce::AudioProcessorEditor,
                                    private juce::Timer
 {
@@ -33,7 +48,8 @@ private:
 
     juce::ComboBox comboTimeScale, comboEffectMode, comboFootswitchMode;
     juce::Label lblTimeScale, lblEffectMode, lblFootswitchMode;
-    juce::ToggleButton btnInputDiffusion, btnOctaveDryMix, btnBypass, btnMomentaryEffect;
+    juce::ToggleButton btnInputDiffusion, btnOctaveDryMix, btnBypass;
+    MomentaryGateButton btnMomentaryEffect;
     juce::Label dryLabel, wetLabel;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> faderMixAttachment;

@@ -6,6 +6,48 @@ const auto amber = juce::Colour (0xffffa13b);
 const auto text = juce::Colour (0xfff2eee8);
 const auto muted = juce::Colour (0xffaaa49d);
 
+void MomentaryGateButton::mouseDown (const juce::MouseEvent&)
+{
+    setToggleState (true, juce::sendNotification);
+}
+
+void MomentaryGateButton::mouseUp (const juce::MouseEvent&)
+{
+    setToggleState (false, juce::sendNotification);
+}
+
+bool MomentaryGateButton::keyPressed (const juce::KeyPress& key)
+{
+    if (key == juce::KeyPress::spaceKey || key == juce::KeyPress::returnKey)
+    {
+        gateKeyIsDown = true;
+        setToggleState (true, juce::sendNotification);
+        return true;
+    }
+
+    return juce::ToggleButton::keyPressed (key);
+}
+
+bool MomentaryGateButton::keyStateChanged (bool isKeyDown)
+{
+    if (gateKeyIsDown && ! isKeyDown)
+    {
+        gateKeyIsDown = false;
+        setToggleState (false, juce::sendNotification);
+        return true;
+    }
+
+    return juce::ToggleButton::keyStateChanged (isKeyDown);
+}
+
+void MomentaryGateButton::focusLost (FocusChangeType cause)
+{
+    juce::ignoreUnused (cause);
+    gateKeyIsDown = false;
+    setToggleState (false, juce::sendNotification);
+    juce::ToggleButton::focusLost (cause);
+}
+
 void setupLabel (juce::Label& label, const juce::String& caption, float size = 12.0f)
 {
     label.setText (caption, juce::dontSendNotification);
@@ -36,6 +78,7 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setSize (900, 620);
+    setWantsKeyboardFocus (true);
     setLookAndFeel (&customLookAndFeel);
 
     addAndMakeVisible (titleLabel); setupLabel (titleLabel, "APOLLO", 26.0f);
@@ -60,6 +103,7 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     faderMix.setSliderStyle (juce::Slider::LinearVertical);
     faderMix.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     faderMix.setWantsKeyboardFocus (true);
+    faderMix.setDoubleClickReturnValue (true, 0.5);
     faderMix.setTooltip ("Equilibra sinal direto e reverb.");
     faderMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (audioProcessor.apvts, "mix", faderMix);
     addAndMakeVisible (lblMix); setupLabel (lblMix, "MIX", 14.0f);
@@ -73,6 +117,8 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
         addAndMakeVisible (knob); addAndMakeVisible (label); addAndMakeVisible (value);
         setupKnob (knob, label, value, caption);
         attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (audioProcessor.apvts, id, knob);
+        auto* parameter = audioProcessor.apvts.getParameter (id);
+        knob.setDoubleClickReturnValue (true, parameter->convertFrom0to1 (parameter->getDefaultValue()));
     };
     addKnob (knobPredelay, lblPredelay, valuePredelay, "predelay", "Pre-delay", attachPredelay);
     addKnob (knobDecay, lblDecay, valueDecay, "decay", "Decay", attachDecay);
@@ -81,7 +127,13 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     addKnob (knobModDepth, lblModDepth, valueModDepth, "moddepth", "Mod Depth", attachModDepth);
     addKnob (knobEq1, lblEq1, valueEq1, "eq1_gain", "Octave High Shelf", attachEq1);
     addKnob (knobEq2, lblEq2, valueEq2, "eq2_gain", "Octave Low Shelf", attachEq2);
-    knobPredelay.setTooltip ("Atrasa a entrada do reverb."); knobDamp.setTooltip ("High Cut à esquerda; Low Cut à direita.");
+    knobPredelay.setTooltip ("Atrasa a entrada do reverb.");
+    knobDecay.setTooltip ("Define quanto tempo o reverb sustenta.");
+    knobDamp.setTooltip ("High Cut à esquerda; Low Cut à direita.");
+    knobModSpeed.setTooltip ("Define a velocidade do movimento.");
+    knobModDepth.setTooltip ("Define a intensidade do movimento.");
+    knobEq1.setTooltip ("Ajusta o shelf alto da ramificação de oitava.");
+    knobEq2.setTooltip ("Ajusta o shelf baixo da ramificação de oitava.");
 
     auto addChoice = [this] (juce::ComboBox& combo, juce::Label& label, const char* id, const juce::String& caption,
                               const juce::StringArray& choices, std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>& attachment)
@@ -93,6 +145,9 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     addChoice (comboTimeScale, lblTimeScale, "time_scale", "Size", { "Small", "Medium", "Large" }, attachTimeScale);
     addChoice (comboEffectMode, lblEffectMode, "effect_mode", "Octave Mode", { "Off", "Up", "Down", "Up + Down" }, attachEffectMode);
     addChoice (comboFootswitchMode, lblFootswitchMode, "footswitch_mode", "Perform Action", { "Freeze", "Overdrive", "Octave Perform" }, attachFootswitchMode);
+    comboTimeScale.setTooltip ("Escolhe o tamanho do espaço.");
+    comboEffectMode.setTooltip ("Escolhe None, Up, Down ou Both para a ramificação de oitava.");
+    comboFootswitchMode.setTooltip ("Escolhe a ação que Perform / Gate executa enquanto é sustentado.");
 
     addAndMakeVisible (btnInputDiffusion); setupToggle (btnInputDiffusion, "Input Diffusion", "Espalha o sinal antes do plate.");
     attachInputDiffusion = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (audioProcessor.apvts, "input_diffusion", btnInputDiffusion);
@@ -134,14 +189,18 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
         component->setAlpha (octaveAlpha);
     octaveStateLabel.setText (octaveOff ? "OCTAVE OFF — controls remain automatable" : "OCTAVE ACTIVE", juce::dontSendNotification);
     octaveStateLabel.setColour (juce::Label::textColourId, octaveOff ? muted : amber);
-    globalStateLabel.setText (bypassed ? "BYPASSED — internal dry path" : "ACTIVE — processing", juce::dontSendNotification);
+    globalStateLabel.setText (bypassed ? "Bypassed — internal dry path" : "Active — processing", juce::dontSendNotification);
     globalStateLabel.setColour (juce::Label::textColourId, bypassed ? amber : text);
-    juce::String state = "PERFORM READY";
-    if (perform && action == 0) state = "FREEZE ACTIVE";
-    else if (perform && action == 1) state = "OVERDRIVE ACTIVE";
-    else if (perform && action == 2) state = octaveOff ? "OCTAVE PERFORM: OCTAVE OFF" : "OCTAVE PERFORM ACTIVE";
+    juce::String state = "Perform Ready";
+    if (perform && action == 0) state = "Freeze Active";
+    else if (perform && action == 1) state = "Drive Active";
+    else if (perform && action == 2) state = octaveOff ? "No Octave Mode Selected" : "Octave Perform Active";
     performanceStateLabel.setText (state, juce::dontSendNotification);
     performanceStateLabel.setColour (juce::Label::textColourId, perform ? amber : muted);
+    btnInputDiffusion.setButtonText (juce::String ("Input Diffusion — ") + (audioProcessor.apvts.getRawParameterValue ("input_diffusion")->load() > 0.5f ? "On" : "Off"));
+    btnOctaveDryMix.setButtonText (juce::String ("Octave Dry Routing (pending) — ") + (audioProcessor.apvts.getRawParameterValue ("octave_dry_mix")->load() > 0.5f ? "On" : "Off"));
+    btnBypass.setButtonText (juce::String ("BYPASS — ") + (bypassed ? "On" : "Off"));
+    btnMomentaryEffect.setButtonText ("PERFORM / GATE — " + (action == 0 ? "Freeze" : action == 1 ? "Overdrive" : "Effect"));
 }
 
 void ApolloAudioProcessorEditor::updateValueLabels()
