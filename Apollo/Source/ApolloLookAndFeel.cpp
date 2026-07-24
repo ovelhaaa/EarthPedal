@@ -35,6 +35,9 @@ void ApolloLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
     auto rw = radius * 2.0f;
     auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     
+    const bool focused = slider.hasKeyboardFocus (true);
+    const bool pressed = slider.isMouseOverOrDragging();
+
     // Draw background track
     g.setColour (findColour (juce::Slider::rotarySliderOutlineColourId));
     g.fillEllipse (rx, ry, rw, rw);
@@ -53,8 +56,8 @@ void ApolloLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
         juce::Path arcLine;
         arcLine.addCentredArc (centreX, centreY, radius + 1.0f, radius + 1.0f, 0.0f, rotaryStartAngle, angle, true);
         
-        g.setColour (findColour (juce::Slider::rotarySliderFillColourId).withAlpha(0.3f));
-        g.strokePath (arcLine, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour (findColour (juce::Slider::rotarySliderFillColourId).withAlpha(pressed ? 0.55f : 0.3f));
+        g.strokePath (arcLine, juce::PathStrokeType (pressed ? 5.0f : 4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour (findColour (juce::Slider::rotarySliderFillColourId));
         g.strokePath (arcLine, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
@@ -73,6 +76,12 @@ void ApolloLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
     p.applyTransform (juce::AffineTransform::rotation (angle).translated (centreX, centreY));
     g.setColour (slider.isEnabled() ? juce::Colour(0xffffffff) : juce::Colour(0xff555555));
     g.fillPath (p);
+
+    if (focused)
+    {
+        g.setColour (juce::Colour (0xffffa13b));
+        g.drawEllipse (rx - 3.0f, ry - 3.0f, rw + 6.0f, rw + 6.0f, 1.5f);
+    }
 }
 
 void ApolloLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
@@ -103,7 +112,7 @@ void ApolloLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int w
     auto thumbHeight = 12.0f;
     juce::Rectangle<float> thumbRect ((float)x + (float)width * 0.5f - thumbWidth * 0.5f, sliderPos - thumbHeight * 0.5f, thumbWidth, thumbHeight);
     
-    g.setColour (juce::Colour(0xff333333));
+    g.setColour (juce::Colour (0xff333333));
     g.fillRoundedRectangle (thumbRect, 2.0f);
     g.setColour (slider.isEnabled() ? juce::Colour(0xffffffff) : juce::Colour(0xff555555));
     g.drawRoundedRectangle (thumbRect, 2.0f, 1.0f);
@@ -117,7 +126,7 @@ void ApolloLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton&
 {
     auto bounds = button.getLocalBounds().toFloat().reduced(2.0f);
     bool state = button.getToggleState();
-    bool isBypass = button.getButtonText().equalsIgnoreCase("BYPASS");
+    bool isBypass = button.getButtonText().startsWithIgnoreCase ("BYPASS");
     
     juce::Colour baseColor = state ? (isBypass ? juce::Colour(0xffff0000) : findColour(juce::ToggleButton::tickColourId)) 
                                    : juce::Colour(0xff333333);
@@ -130,12 +139,18 @@ void ApolloLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton&
     g.setColour(baseColor.withAlpha(state ? 0.9f : 1.0f));
     g.fillRoundedRectangle(bounds, 4.0f);
     
-    g.setColour(juce::Colour(0xff111111));
-    g.drawRoundedRectangle(bounds, 4.0f, 1.5f);
+    g.setColour (shouldDrawButtonAsHighlighted ? juce::Colour (0xffffa13b) : juce::Colour (0xff111111));
+    g.drawRoundedRectangle(bounds, 4.0f, shouldDrawButtonAsHighlighted ? 1.5f : 1.0f);
     
     g.setColour(state ? juce::Colour(0xff000000) : juce::Colour(0xffaaaaaa));
     g.setFont(juce::Font(isBypass ? 15.0f : 13.0f).withStyle(isBypass ? juce::Font::bold : juce::Font::plain));
     g.drawText(button.getButtonText(), bounds, juce::Justification::centred, true);
+
+    if (shouldDrawButtonAsDown)
+    {
+        g.setColour (juce::Colour (0xffffffff).withAlpha (0.75f));
+        g.drawText ("HOLD", bounds.withTrimmedTop (bounds.getHeight() * 0.52f), juce::Justification::centred, true);
+    }
 
     if (button.hasKeyboardFocus (true))
     {
