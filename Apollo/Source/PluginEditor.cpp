@@ -7,8 +7,8 @@ const auto text = juce::Colour (0xfff2eee8);
 const auto muted = juce::Colour (0xffc8c0b7);
 constexpr int defaultEditorWidth = 900;
 constexpr int defaultEditorHeight = 620;
-constexpr int minEditorWidth = 760;
-constexpr int minEditorHeight = 540;
+constexpr int minEditorWidth = defaultEditorWidth;
+constexpr int minEditorHeight = defaultEditorHeight;
 constexpr int maxEditorWidth = 1400;
 constexpr int maxEditorHeight = 980;
 }
@@ -43,9 +43,9 @@ bool MomentaryGateButton::keyPressed (const juce::KeyPress& key)
     return juce::ToggleButton::keyPressed (key);
 }
 
-bool MomentaryGateButton::keyStateChanged (bool isKeyDown)
+bool MomentaryGateButton::keyStateChanged (bool keyIsDown)
 {
-    if (localKeyGestureActive && ! isKeyDown)
+    if (localKeyGestureActive && ! keyIsDown)
     {
         const bool triggerKeyIsStillDown = juce::KeyPress::isKeyCurrentlyDown (juce::KeyPress::spaceKey)
                                            || juce::KeyPress::isKeyCurrentlyDown (juce::KeyPress::returnKey);
@@ -60,7 +60,7 @@ bool MomentaryGateButton::keyStateChanged (bool isKeyDown)
         return true;
     }
 
-    return juce::ToggleButton::keyStateChanged (isKeyDown);
+    return juce::ToggleButton::keyStateChanged (keyIsDown);
 }
 
 void MomentaryGateButton::focusLost (FocusChangeType cause)

@@ -38,7 +38,7 @@ ranges, defaults, serialização, attachments ou configuração de formatos.
 
 - O editor agora é redimensionável com proporção fixa baseada no tamanho padrão
   `900 x 620`.
-- Limites seguros: mínimo `760 x 540`, máximo `1400 x 980`.
+- Limites seguros: mínimo `900 x 620`, máximo `1400 x 980`. O mínimo permanece igual ao tamanho padrão porque o layout atual ainda usa colunas e offsets absolutos; anunciar uma altura menor faria hosts comprimirem Performance/Output além da área segura.
 - Constantes locais centralizam os tamanhos do editor para evitar números
   mágicos dispersos.
 - O ambiente de CI/terminal usado nesta fase não fornece display/host gráfico;
@@ -81,4 +81,4 @@ ou comportamento de validação.
 | Overdrive ativo | Performance mostra `Drive Active`. | Sem parâmetro novo de drive. |
 | Octave Perform + Octave Off | Performance mostra ausência de modo de oitava. | Gate não altera `effect_mode`. |
 | Bypass interno | Header e botão mostram bypass interno, distinto do host. | Demais controles continuam editáveis/automatizáveis. |
-| Resize mínimo/máximo | Sem sobreposição crítica; áreas clicáveis permanecem confortáveis. | Proporção fixa preserva arquitetura visual. |
+| Resize mínimo/máximo | Mínimo igual ao tamanho padrão atual; máximo amplia a UI sem permitir compressão que corte Performance/Output. | Proporção fixa preserva arquitetura visual até a fase de layout responsivo completo. |
