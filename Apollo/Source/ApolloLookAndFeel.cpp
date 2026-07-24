@@ -119,6 +119,14 @@ void ApolloLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int w
     
     // Thumb line
     g.fillRect (thumbRect.getCentreX() - 6.0f, thumbRect.getCentreY() - 0.5f, 12.0f, 1.0f);
+
+    if (slider.hasKeyboardFocus (true))
+    {
+        g.setColour (juce::Colour (0xffffa13b));
+        g.drawRoundedRectangle (juce::Rectangle<float> ((float) x + 1.5f, (float) y + 1.5f, (float) width - 3.0f, (float) height - 3.0f), 4.0f, 1.5f);
+        g.setColour (juce::Colour (0xffffffff).withAlpha (0.7f));
+        g.drawRoundedRectangle (juce::Rectangle<float> ((float) x + 4.5f, (float) y + 4.5f, (float) width - 9.0f, (float) height - 9.0f), 3.0f, 1.0f);
+    }
 }
 
 void ApolloLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
