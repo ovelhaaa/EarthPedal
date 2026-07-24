@@ -11,6 +11,7 @@ constexpr int minEditorWidth = 760;
 constexpr int minEditorHeight = 540;
 constexpr int maxEditorWidth = 1400;
 constexpr int maxEditorHeight = 980;
+}
 
 MomentaryGateButton::MomentaryGateButton()
 {
@@ -74,6 +75,8 @@ void MomentaryGateButton::focusLost (FocusChangeType cause)
     juce::ToggleButton::focusLost (cause);
 }
 
+namespace
+{
 void setupLabel (juce::Label& label, const juce::String& caption, float size = 12.0f)
 {
     label.setText (caption, juce::dontSendNotification);

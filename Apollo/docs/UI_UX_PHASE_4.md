@@ -58,6 +58,19 @@ a build/inspeção estática. A validação em DAWs deve confirmar Tab/Shift+Tab
 leitores de tela onde aplicável, automação atualizando UI sem flicker evidente,
 bypass interno distinto do bypass de host e renderização em VST3/AU/Standalone.
 
+## Correção de validação DSP em GH Actions
+
+A falha de compilação observada no `ApolloTest` em Windows/MSVC não vinha do
+DSP: as implementações de `MomentaryGateButton` estavam definidas dentro do
+namespace anônimo local do `PluginEditor.cpp`. O MSVC rejeita essa forma para
+métodos de uma classe declarada em escopo externo, gerando `C2888`. As
+definições foram movidas para o escopo global do arquivo, mantendo apenas
+constantes e helpers internos no namespace anônimo.
+
+Os avisos `C4244` em `BandShifter.h` continuam sendo warnings preexistentes de
+conversão numérica no DSP e não foram tratados nesta fase para não alterar som
+ou comportamento de validação.
+
 ## Matriz de QA recomendada
 
 | Estado | Verificação visual/teclado | Observação de contrato |
