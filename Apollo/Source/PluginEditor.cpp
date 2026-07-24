@@ -113,10 +113,15 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     setSize (defaultEditorWidth, defaultEditorHeight);
     setResizable (true, true);
     setResizeLimits (minEditorWidth, minEditorHeight, maxEditorWidth, maxEditorHeight);
-    getConstrainer()->setFixedAspectRatio ((double) defaultEditorWidth / (double) defaultEditorHeight);
+    if (auto* constrainer = getConstrainer())
+    {
+        constrainer->setFixedAspectRatio ((double) defaultEditorWidth / (double) defaultEditorHeight);
+        constrainer->checkComponentBounds (this);
+    }
     setWantsKeyboardFocus (true);
+    setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
     setTitle ("Apollo plugin editor");
-    setDescription ("Apollo plate reverb editor. Keyboard focus follows Header, Reverb, Octave, Performance and Output.");
+    setDescription ("Apollo plate reverb editor. Keyboard focus follows Reverb, Octave, Performance and Output.");
     setLookAndFeel (&customLookAndFeel);
 
     addAndMakeVisible (titleLabel); setupLabel (titleLabel, "APOLLO", 26.0f);
@@ -289,6 +294,15 @@ void ApolloAudioProcessorEditor::paint (juce::Graphics& g)
 
 void ApolloAudioProcessorEditor::resized()
 {
+    if (auto* constrainer = getConstrainer())
+    {
+        const auto boundsBeforeConstraint = getBounds();
+        constrainer->checkComponentBounds (this);
+
+        if (getBounds() != boundsBeforeConstraint)
+            return;
+    }
+
     auto area = getLocalBounds().reduced (20);
     auto header = area.removeFromTop (46); titleLabel.setBounds (header.removeFromLeft (170)); globalStateLabel.setBounds (header.removeFromLeft (260)); helpLabel.setBounds (header.removeFromRight (150));
     area.removeFromTop (10);

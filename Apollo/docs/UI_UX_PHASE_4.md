@@ -47,10 +47,14 @@ do plugin executada em um host específico.
 - Limites seguros: mínimo `900 x 620`, máximo `1400 x 980`. O mínimo permanece igual ao tamanho padrão porque o layout atual ainda usa colunas e offsets absolutos; anunciar uma altura menor faria hosts comprimirem Performance/Output além da área segura.
 - Constantes locais centralizam os tamanhos do editor para evitar números
   mágicos dispersos.
-- O ambiente de CI/terminal usado nesta fase não fornece display/host gráfico;
-  portanto a validação HiDPI real em 125%, 150% ou 200% e capturas Standalone
-  ficam pendentes para QA manual. A validação realizada foi build, teste DSP e
-  inspeção estática de layout/foco.
+- As etapas iniciais de configuração do compilador pelo CMake e as verificações
+  estáticas de layout, foco e contratos APVTS foram concluídas. Neste ambiente
+  Linux, porém, a configuração completa parou ao tentar compilar as ferramentas
+  JUCE porque o header
+  `X11/extensions/Xrandr.h` não estava disponível; por isso o executável
+  `ApolloTest` não foi produzido nem executado e nenhum teste DSP runtime deve
+  ser considerado aprovado localmente. A validação HiDPI real em 125%, 150% ou
+  200% e as capturas Standalone também permanecem pendentes para QA manual.
 
 ## Compatibilidade de formatos e host
 
