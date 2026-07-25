@@ -59,8 +59,8 @@ não por recuperação de sessão em host.
 | `eq1_gain` | float −24..24; −11 | Attachment | Attachment | Estático | −24/−11/24 | PASS WITH LIMITATIONS |
 | `eq2_gain` | float −24..24; 5 | Attachment | Attachment | Estático | −24/5/24 | PASS WITH LIMITATIONS |
 | `time_scale` | choice Small/Medium/Large; Large | Attachment | Attachment | Estático | três escolhas | PASS WITH LIMITATIONS |
-| `effect_mode` | choice None/Up/Down/Both; None | Attachment | Attachment + timer | Estático | quatro escolhas capturadas | PASS WITH LIMITATIONS |
-| `footswitch_mode` | choice Freeze/Overdrive/Effect; Freeze | Attachment | Attachment + timer | Estático | três escolhas exercitadas visualmente | PASS WITH LIMITATIONS |
+| `effect_mode` | choice Off/Up/Down/Up + Down; Off | Attachment | Attachment + timer | Estático | quatro escolhas capturadas | PASS WITH LIMITATIONS |
+| `footswitch_mode` | choice Freeze/Overdrive/Octave Perform; Freeze | Attachment | Attachment + timer | Estático | três escolhas exercitadas visualmente | PASS WITH LIMITATIONS |
 | `input_diffusion` | bool; true | Attachment | Attachment + timer | Estático | false/true | PASS WITH LIMITATIONS |
 | `octave_dry_mix` | bool; true | Attachment | Attachment + timer | Estático | false/true | PASS WITH LIMITATIONS |
 | `bypass` | bool; false | Attachment | Attachment + timer | Estático | mouse/foco visual; sem DAW | PASS WITH LIMITATIONS |
@@ -161,10 +161,12 @@ executados.
 
 ## 11. Correções implementadas
 
-Somente `Source/PluginEditor.cpp` mudou: copy visual compatível com o caminho de
-texto do JUCE/Linux e layout mínimo do Perform. Risco baixo: não toca processor,
-APVTS, parâmetros, attachments, serialização ou formatos. Rebuild dos artefatos
-e inspeção das capturas foram repetidos.
+O único arquivo de produção alterado foi `Source/PluginEditor.cpp`: copy visual
+compatível com o caminho de texto do JUCE/Linux e layout mínimo do Perform. O
+relatório `docs/UI_UX_PHASE_5.md` também foi criado para documentar a validação.
+Risco baixo: nenhuma mudança toca processor, APVTS, parâmetros, attachments,
+serialização ou formatos. Rebuild dos artefatos e inspeção das capturas foram
+repetidos.
 
 ## 12. Limitações e decisões adiadas
 

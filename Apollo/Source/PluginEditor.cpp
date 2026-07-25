@@ -255,7 +255,7 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
     globalStateLabel.setColour (juce::Label::textColourId, bypassed ? amber : text);
     juce::String state = "Perform Ready";
     if (perform && action == 0) state = "Freeze Active";
-    else if (perform && action == 1) state = "Drive Active";
+    else if (perform && action == 1) state = "Overdrive Active";
     else if (perform && action == 2) state = octaveOff ? "No Octave Mode Selected" : "Octave Perform Active";
     performanceStateLabel.setText (state, juce::dontSendNotification);
     performanceStateLabel.setColour (juce::Label::textColourId, perform ? amber : muted);
