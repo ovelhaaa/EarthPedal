@@ -13,6 +13,9 @@ constexpr int maxEditorWidth = 1400;
 constexpr int maxEditorHeight = 980;
 }
 
+// MomentaryGateButton is declared in the global namespace. Keep these
+// out-of-class definitions at global scope too; MSVC rejects them with C2888
+// if they are placed inside the anonymous namespace used for file helpers.
 MomentaryGateButton::MomentaryGateButton()
 {
     setClickingTogglesState (false);
@@ -81,7 +84,7 @@ void setupLabel (juce::Label& label, const juce::String& caption, float size = 1
 {
     label.setText (caption, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::Font (size));
+    label.setFont (juce::Font (juce::FontOptions (size)));
     label.setColour (juce::Label::textColourId, text);
 }
 
@@ -202,7 +205,7 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
 
     addAndMakeVisible (btnInputDiffusion); setupToggle (btnInputDiffusion, "Input Diffusion", "Espalha o sinal antes do plate.");
     attachInputDiffusion = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (audioProcessor.apvts, "input_diffusion", btnInputDiffusion);
-    addAndMakeVisible (btnOctaveDryMix); setupToggle (btnOctaveDryMix, "Octave Dry Routing (pending)", "Roteamento dry da ramificação de oitava — validação pendente.");
+    addAndMakeVisible (btnOctaveDryMix); setupToggle (btnOctaveDryMix, "Octave Dry Routing (pending)", "Roteamento dry da ramificação de oitava; validação pendente.");
     attachOctaveDryMix = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (audioProcessor.apvts, "octave_dry_mix", btnOctaveDryMix);
     addAndMakeVisible (btnMomentaryEffect); setupToggle (btnMomentaryEffect, "PERFORM / GATE", "Sustente para executar a ação selecionada.");
     attachMomentaryEffect = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (audioProcessor.apvts, "momentary_effect", btnMomentaryEffect);
@@ -249,20 +252,20 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
                                         static_cast<juce::Component*> (&valueEq1), static_cast<juce::Component*> (&valueEq2),
                                         static_cast<juce::Component*> (&btnOctaveDryMix) })
         component->setAlpha (octaveAlpha);
-    octaveStateLabel.setText (octaveOff ? "OCTAVE OFF — controls remain automatable" : "OCTAVE ACTIVE", juce::dontSendNotification);
+    octaveStateLabel.setText (octaveOff ? "OCTAVE OFF - controls remain automatable" : "OCTAVE ACTIVE", juce::dontSendNotification);
     octaveStateLabel.setColour (juce::Label::textColourId, octaveOff ? muted : amber);
-    globalStateLabel.setText (bypassed ? "Bypassed — internal dry path" : "Active — processing", juce::dontSendNotification);
+    globalStateLabel.setText (bypassed ? "Bypassed - internal dry path" : "Active - processing", juce::dontSendNotification);
     globalStateLabel.setColour (juce::Label::textColourId, bypassed ? amber : text);
     juce::String state = "Perform Ready";
     if (perform && action == 0) state = "Freeze Active";
-    else if (perform && action == 1) state = "Drive Active";
+    else if (perform && action == 1) state = "Overdrive Active";
     else if (perform && action == 2) state = octaveOff ? "No Octave Mode Selected" : "Octave Perform Active";
     performanceStateLabel.setText (state, juce::dontSendNotification);
     performanceStateLabel.setColour (juce::Label::textColourId, perform ? amber : muted);
-    btnInputDiffusion.setButtonText (juce::String ("Input Diffusion — ") + (audioProcessor.apvts.getRawParameterValue ("input_diffusion")->load() > 0.5f ? "On" : "Off"));
-    btnOctaveDryMix.setButtonText (juce::String ("Octave Dry Routing (pending) — ") + (audioProcessor.apvts.getRawParameterValue ("octave_dry_mix")->load() > 0.5f ? "On" : "Off"));
-    btnBypass.setButtonText (juce::String ("BYPASS — ") + (bypassed ? "On" : "Off"));
-    btnMomentaryEffect.setButtonText (juce::String ("PERFORM / GATE — ") + (action == 0 ? "Freeze" : action == 1 ? "Overdrive" : "Octave Perform"));
+    btnInputDiffusion.setButtonText (juce::String ("Diffusion - ") + (audioProcessor.apvts.getRawParameterValue ("input_diffusion")->load() > 0.5f ? "On" : "Off"));
+    btnOctaveDryMix.setButtonText (juce::String ("Dry Routing (pending) - ") + (audioProcessor.apvts.getRawParameterValue ("octave_dry_mix")->load() > 0.5f ? "On" : "Off"));
+    btnBypass.setButtonText (juce::String ("BYPASS - ") + (bypassed ? "On" : "Off"));
+    btnMomentaryEffect.setButtonText (juce::String ("PERFORM - ") + (action == 0 ? "Freeze" : action == 1 ? "Overdrive" : "Octave"));
 
     btnBypass.setToggleState (bypassed, juce::dontSendNotification);
     btnBypass.setDescription (juce::String ("Internal bypass is ") + (bypassed ? "on. Audio follows the dry path; controls remain editable." : "off. Apollo is processing."));
@@ -323,6 +326,6 @@ void ApolloAudioProcessorEditor::resized()
     auto octaveControls = octave.reduced (15, 32); lblEffectMode.setBounds (octaveControls.removeFromTop (18).removeFromLeft (150)); comboEffectMode.setBounds (octave.getX() + 15, octave.getY() + 51, 155, 25); octaveStateLabel.setBounds (octave.getX() + 185, octave.getY() + 52, 295, 24);
     auto octaveKnobs = octaveControls.withTrimmedTop (32); placeKnob (octaveKnobs.removeFromLeft (125), knobEq1, lblEq1, valueEq1); placeKnob (octaveKnobs.removeFromLeft (125), knobEq2, lblEq2, valueEq2); btnOctaveDryMix.setBounds (octave.getX() + 270, octave.getY() + 95, 200, 28);
 
-    lblFootswitchMode.setBounds (performance.getX() + 15, performance.getY() + 33, 150, 18); comboFootswitchMode.setBounds (performance.getX() + 15, performance.getY() + 53, 160, 25); btnMomentaryEffect.setBounds (performance.getX() + 195, performance.getY() + 52, 185, 32); performanceStateLabel.setBounds (performance.getX() + 15, performance.getY() + 105, performance.getWidth() - 30, 26);
+    lblFootswitchMode.setBounds (performance.getX() + 15, performance.getY() + 33, 150, 18); comboFootswitchMode.setBounds (performance.getX() + 15, performance.getY() + 53, 150, 25); btnMomentaryEffect.setBounds (performance.getX() + 175, performance.getY() + 52, performance.getWidth() - 190, 32); performanceStateLabel.setBounds (performance.getX() + 15, performance.getY() + 105, performance.getWidth() - 30, 26);
     auto outputControls = output.reduced (25, 38); lblMix.setBounds (outputControls.getX(), outputControls.getY(), outputControls.getWidth(), 20); valueMix.setBounds (outputControls.getX(), outputControls.getBottom() - 22, outputControls.getWidth(), 20); faderMix.setBounds (output.getX() + 65, output.getY() + 75, 70, 190); dryLabel.setBounds (output.getX() + 20, output.getBottom() - 48, 48, 18); wetLabel.setBounds (output.getRight() - 68, output.getBottom() - 48, 48, 18); btnBypass.setBounds (output.getX() + 170, output.getY() + 130, output.getWidth() - 195, 42);
 }
