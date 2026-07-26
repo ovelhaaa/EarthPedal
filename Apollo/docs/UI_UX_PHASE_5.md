@@ -60,7 +60,7 @@ não por recuperação de sessão em host.
 | `eq2_gain` | float −24..24; 5 | Attachment | Attachment | Estático | −24/5/24 | PASS WITH LIMITATIONS |
 | `time_scale` | choice Small/Medium/Large; Large | Attachment | Attachment | Estático | três escolhas | PASS WITH LIMITATIONS |
 | `effect_mode` | choice Off/Up/Down/Up + Down; Off | Attachment | Attachment + timer | Estático | quatro escolhas capturadas | PASS WITH LIMITATIONS |
-| `footswitch_mode` | choice Freeze/Overdrive/Octave Perform; Freeze | Attachment | Attachment + timer | Estático | três escolhas exercitadas visualmente | PASS WITH LIMITATIONS |
+| `footswitch_mode` | APVTS: Freeze/Overdrive/Effect; editor: Freeze/Overdrive/Octave Perform; default Freeze | Attachment | Attachment + timer | Estático | três escolhas exercitadas visualmente | PASS WITH LIMITATIONS |
 | `input_diffusion` | bool; true | Attachment | Attachment + timer | Estático | false/true | PASS WITH LIMITATIONS |
 | `octave_dry_mix` | bool; true | Attachment | Attachment + timer | Estático | false/true | PASS WITH LIMITATIONS |
 | `bypass` | bool; false | Attachment | Attachment + timer | Estático | mouse/foco visual; sem DAW | PASS WITH LIMITATIONS |
@@ -115,9 +115,9 @@ NOT TESTED e permanecem obrigatórias em display/host reais.
 
 | Fonte/configuração | Ação | Esperado | Observado | Severidade/evidência |
 | --- | --- | --- | --- | --- |
-| Impulso estéreo + seno 440 Hz/0,5, 44,1 kHz | Up octave + Overdrive, mix/decay intermediários | saída finita e WAV | processo terminou e gerou WAV | Nenhuma; `test_out_44100.wav` |
-| Mesma fonte, 48 kHz | idem | processamento no rate nativo | terminou e gerou WAV | Nenhuma; `test_out_48000.wav` |
-| Mesma fonte, 96 kHz | idem | resampling estável | terminou e gerou WAV | Nenhuma; `test_out_96000.wav` |
+| Impulso estéreo + seno 440 Hz/0,5, 44,1 kHz | Up octave + Overdrive, mix/decay intermediários | saída finita e WAV | todos os samples finitos; escrita e arquivo WAV não vazio confirmados | Nenhuma; `test_out_44100.wav` |
+| Mesma fonte, 48 kHz | idem | processamento no rate nativo | todos os samples finitos; escrita e arquivo WAV não vazio confirmados | Nenhuma; `test_out_48000.wav` |
+| Mesma fonte, 96 kHz | idem | resampling estável | todos os samples finitos; escrita e arquivo WAV não vazio confirmados | Nenhuma; `test_out_96000.wav` |
 | Capacidade de pre-delay | 1 s em 44,1/48/96 kHz | buffer suficiente | assertions passaram | Nenhuma; saída de `ApolloTest` |
 
 Guitarra, acordes densos, baixo, material sustentado/estéreo real, silêncio,

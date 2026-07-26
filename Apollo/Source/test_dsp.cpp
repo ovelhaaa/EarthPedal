@@ -70,23 +70,32 @@ void runTestForSampleRate(double sampleRate, const String& filename)
         processor.processBlock(block, midi);
     }
 
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            if (! std::isfinite(buffer.getSample(channel, sample)))
+                throw std::runtime_error("DSP produced a non-finite sample at "
+                                         + std::to_string(static_cast<int>(sampleRate)) + " Hz");
+
     // std::cout << "  [trace] Writing WAV file..." << std::endl;
     // Write to WAV
     File outputFile(File::getCurrentWorkingDirectory().getChildFile(filename));
     outputFile.deleteFile();
 
+    auto outputStream = std::make_unique<FileOutputStream>(outputFile);
+    if (! outputStream->openedOk())
+        throw std::runtime_error("Could not open WAV output: " + filename.toStdString());
+
     WavAudioFormat format;
-    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(new FileOutputStream(outputFile), sampleRate, 2, 16, {}, 0));
-    
-    if (writer != nullptr)
-    {
-        writer->writeFromAudioSampleBuffer(buffer, 0, totalSamples);
-        // std::cout << "Successfully wrote " << filename << std::endl;
-    }
-    else
-    {
-        // std::cout << "Failed to write " << filename << std::endl;
-    }
+    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(outputStream.release(), sampleRate, 2, 16, {}, 0));
+    if (writer == nullptr)
+        throw std::runtime_error("Could not create WAV writer: " + filename.toStdString());
+
+    if (! writer->writeFromAudioSampleBuffer(buffer, 0, totalSamples))
+        throw std::runtime_error("Could not write WAV samples: " + filename.toStdString());
+
+    writer.reset();
+    if (! outputFile.existsAsFile() || outputFile.getSize() <= 44)
+        throw std::runtime_error("WAV output is missing or empty: " + filename.toStdString());
 }
 
 int main(int argc, char* argv[])

@@ -265,7 +265,7 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
     btnInputDiffusion.setButtonText (juce::String ("Diffusion - ") + (audioProcessor.apvts.getRawParameterValue ("input_diffusion")->load() > 0.5f ? "On" : "Off"));
     btnOctaveDryMix.setButtonText (juce::String ("Dry Routing (pending) - ") + (audioProcessor.apvts.getRawParameterValue ("octave_dry_mix")->load() > 0.5f ? "On" : "Off"));
     btnBypass.setButtonText (juce::String ("BYPASS - ") + (bypassed ? "On" : "Off"));
-    btnMomentaryEffect.setButtonText (juce::String ("PERFORM - ") + (action == 0 ? "Freeze" : action == 1 ? "Overdrive" : "Octave"));
+    btnMomentaryEffect.setButtonText (juce::String ("PERFORM - ") + (action == 0 ? "Freeze" : action == 1 ? "Overdrive" : "Effect"));
 
     btnBypass.setToggleState (bypassed, juce::dontSendNotification);
     btnBypass.setDescription (juce::String ("Internal bypass is ") + (bypassed ? "on. Audio follows the dry path; controls remain editable." : "off. Apollo is processing."));
