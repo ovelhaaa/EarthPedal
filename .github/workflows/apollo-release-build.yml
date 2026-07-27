@@ -11,8 +11,9 @@ jobs:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-15-intel]
     
     steps:
       - name: Checkout repository
@@ -24,9 +25,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Apollo/build
-          key: ${{ runner.os }}-juce-v2-${{ hashFiles('Apollo/Source/**', 'Apollo/CMakeLists.txt') }}
+          key: ${{ matrix.os }}-juce-v2-${{ hashFiles('Apollo/Source/**', 'Apollo/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-juce-v2-
+            ${{ matrix.os }}-juce-v2-
 
       - name: Configure CMake
         run: cmake -B Apollo/build -S Apollo -DCMAKE_BUILD_TYPE=Release
