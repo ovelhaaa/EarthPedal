@@ -86,7 +86,7 @@ void runTestForSampleRate(double sampleRate, const String& filename)
         throw std::runtime_error("Could not open WAV output: " + filename.toStdString());
 
     WavAudioFormat format;
-    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(outputStream.release(), sampleRate, 2, 16, {}, 0));
+    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(std::move(outputStream), sampleRate, 2, 16, {}, 0));
     if (writer == nullptr)
         throw std::runtime_error("Could not create WAV writer: " + filename.toStdString());
 
