@@ -1,0 +1,20 @@
+invariant_48k_vs_legacy_48k
+  lag        0
+  null_db    -553.4198947305948
+  corr       1.0
+
+invariant_96k_vs_legacy_96k
+  lag        0
+  null_db    3.2108492244888254
+  corr       0.031971946845194416
+
+correct_48k_vs_legacy_48k
+  lag        0
+  null_db    3.218180677447071
+  corr       0.03692127993962959
+
+invariant_44k1_vs_legacy_48k
+  lag        -78
+  null_db    2.964291140301934
+  corr       0.012212406794128359
+
