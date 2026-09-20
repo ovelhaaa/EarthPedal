@@ -64,16 +64,18 @@ target_link_libraries(Apollo
 )
 
 # Add DSP path to includes
+# The shared core must be found before the legacy Source/DSP tree so that
+# "Dattorro/Dattorro.hpp" resolves to shared/Dattorro (rate-context aware).
 target_include_directories(Apollo
     PRIVATE
         Source
-        Source/DSP
         "${EARTH_SHARED_DIR}"
+        Source/DSP
 )
 
 juce_add_console_app(ApolloTest)
 target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
-target_include_directories(ApolloTest PRIVATE Source Source/DSP "${EARTH_SHARED_DIR}")
+target_include_directories(ApolloTest PRIVATE Source "${EARTH_SHARED_DIR}" Source/DSP)
 target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
 
