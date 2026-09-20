@@ -1,0 +1,28 @@
+current_vs_A_tank_diffusion
+  lag            0
+  null_depth_db  2.03794573698015
+  diff_rms       0.005338678078715445
+  peak_diff      0.1125819981098175
+  corr           0.26080627209336255
+
+A_vs_B_full_init
+  lag            0
+  null_depth_db  -22.209428021929135
+  diff_rms       0.00035272892595077885
+  peak_diff      0.01710692048072815
+  corr           0.9975366751715613
+
+B_vs_web_reference
+  lag            0
+  null_depth_db  -553.4198947305948
+  diff_rms       0.0
+  peak_diff      0.0
+  corr           1.0
+
+diffusion_0.0_vs_0.7
+  lag            0
+  null_depth_db  1.983899350852406
+  diff_rms       0.005480125713644024
+  peak_diff      0.12968792021274567
+  corr           0.26816723507872997
+

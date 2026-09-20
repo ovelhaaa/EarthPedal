@@ -26,3 +26,7 @@ Thumbs.db
 
 # Test outputs
 *.wav
+*.exe
+*.o
+*.obj
+.tools_build/

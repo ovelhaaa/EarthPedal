@@ -66,10 +66,29 @@ void ApolloAudioProcessor::setCurrentProgram (int index) { juce::ignoreUnused(in
 const juce::String ApolloAudioProcessor::getProgramName (int index) { juce::ignoreUnused(index); return {}; }
 void ApolloAudioProcessor::changeProgramName (int index, const juce::String& newName) { juce::ignoreUnused(index, newName); }
 
+void ApolloAudioProcessor::initialiseReverbDSP()
+{
+    // Values from earth.cpp:642-657 and src/wasm_wrapper.cpp:24-38. Without
+    // these calls the tank all-pass diffusers keep gain 0 and the tank filters
+    // keep their 22049/10 Hz defaults, which sounds sparse and echoey.
+    reverb.setPreDelay(0.0f);
+    reverb.setInputFilterLowCutoffPitch(0.0f);   // 13.75 Hz
+    reverb.setInputFilterHighCutoffPitch(10.0f); // 14080 Hz
+    reverb.enableInputDiffusion(true);
+    reverb.setDecay(0.877465f);
+    reverb.setTankDiffusion(0.7f);
+    reverb.setTankFilterLowCutFrequency(0.0f);   // 13.75 Hz
+    reverb.setTankFilterHighCutFrequency(10.0f); // 14080 Hz
+    reverb.setTankModSpeed(1.0f);
+    reverb.setTankModDepth(0.5f);
+    reverb.setTankModShape(0.5f);
+}
+
 void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // std::cout << "    [prepareToPlay] reverb.setSampleRate..." << std::endl;
     reverb.setSampleRate((float)sampleRate);
+    initialiseReverbDSP();
     // std::cout << "    [prepareToPlay] reverb.clear..." << std::endl;
     reverb.clear();
 
@@ -78,11 +97,15 @@ void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     octave = std::make_unique<OctaveGenerator>(48000.0f / resample_factor);
     
     // std::cout << "    [prepareToPlay] IIR Filter setup..." << std::endl;
-    // Replace cycfi q filters with JUCE DSP IIR filters. These run inside the resampled 48kHz branch.
-    eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
-    eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
+    // Replace cycfi q filters with JUCE DSP IIR filters. These process the
+    // already-reconstructed 48 kHz octave signal (eq1.processSample is called
+    // on out_chunk), so the coefficients must be designed at 48 kHz. Previously
+    // they were designed at 48000/resample_factor = 8 kHz, shifting the 140/160
+    // Hz corners up ~6x. See docs/dsp_parity/ANALYSIS.md item 7.
+    eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
+    eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
     
-    juce::dsp::ProcessSpec spec { 48000.0 / resample_factor, (juce::uint32)samplesPerBlock, 1 };
+    juce::dsp::ProcessSpec spec { 48000.0, (juce::uint32)samplesPerBlock, 1 };
     // std::cout << "    [prepareToPlay] IIR eq1.prepare..." << std::endl;
     eq1.prepare(spec);
     // std::cout << "    [prepareToPlay] IIR eq2.prepare..." << std::endl;
@@ -244,11 +267,11 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     }
     
     if (peq1 != veq1) {
-        eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f / resample_factor, 140.0f, 0.707f, juce::Decibels::decibelsToGain(veq1));
+        eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f, 140.0f, 0.707f, juce::Decibels::decibelsToGain(veq1));
         peq1 = veq1;
     }
     if (peq2 != veq2) {
-        eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f / resample_factor, 160.0f, 0.707f, juce::Decibels::decibelsToGain(veq2));
+        eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f, 160.0f, 0.707f, juce::Decibels::decibelsToGain(veq2));
         peq2 = veq2;
     }
 

@@ -40,6 +40,11 @@ public:
 public: float prev_x_in = 0.0f; float prev_x_out = 0.0f; double energy_in_above_24k = 0.0; double energy_out_above_24k = 0.0; int measure_count_in = 0; int measure_count_out = 0; bool printed1c = false; private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // Mirrors the original earth.cpp / Web reverb initialisation. Called after
+    // setSampleRate() so the VST does not silently depend on Dattorro defaults.
+    // See docs/dsp_parity/ANALYSIS.md (items 1 and 2).
+    void initialiseReverbDSP();
+
     // DSP Components
     Dattorro reverb;
     daisysp::Overdrive overdriveLeft, overdriveRight;

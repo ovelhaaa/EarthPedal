@@ -183,8 +183,12 @@ private:
     // Let's set them directly.
 
     void updateSmoothedParams() {
-        // PreDelay
-        reverb_.setPreDelay(predelay_ * 1000.0f * 2.0f > 700.0f ? 700.0f : predelay_ * 1000.0f * 2.0f); // approximating from earth.cpp (max ~700ms)
+        // PreDelay: Dattorro::setPreDelay() takes *seconds* and internally
+        // multiplies by the sample rate. The normalised UI value 0..1 therefore
+        // maps directly to 0..1 s (0 / 500 / 1000 ms). The previous
+        // `norm * 1000 * 2` passed up to 700 s and saturated the delay line for
+        // any non-zero value. See docs/dsp_parity/ANALYSIS.md item 3.
+        reverb_.setPreDelay(predelay_);
 
         // Mix
         // A cheap mostly energy constant crossfade

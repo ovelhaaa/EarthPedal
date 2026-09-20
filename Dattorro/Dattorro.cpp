@@ -1,5 +1,10 @@
 #include "Dattorro.hpp"
 #include <algorithm>
+#include <cmath>
+
+namespace {
+constexpr float kMaximumPreDelaySeconds = 1.0f;
+}
 
 // float scale(float a, float inMin, float inMax, float outMin, float outMax) {
 //     return (a - inMin)/(inMax - inMin) * (outMax - outMin) + outMin;
@@ -299,8 +304,11 @@ Dattorro::Dattorro(const float initMaxSampleRate,
     sampleRate = initMaxSampleRate;
     dattorroScaleFactor = sampleRate / dattorroSampleRate;
 
-    //preDelay = InterpDelay(192010, 0.);
-    preDelay = InterpDelay(37000, 0.);
+    // Allocate enough room for the advertised one-second pre-delay at the
+    // initial sample rate. setSampleRate() resizes it for the active host rate,
+    // so 44.1/48/96/192 kHz keep a full second available. The old fixed
+    // InterpDelay(37000) could not represent 1 s above ~37 kHz.
+    preDelay = InterpDelay(static_cast<unsigned int>(std::ceil(sampleRate * kMaximumPreDelaySeconds)) + 1, 0.);
     // // 22000 goes outside the range fo the linear function.
     // // inputLpf = OnePoleLPFilter(22000.0);
     // inputLpf = OnePoleLPFilter(-1.);
@@ -383,6 +391,7 @@ void Dattorro::setTimeScale(float timeScale) {
 #pragma GCC optimize ("Ofast")
 
 void Dattorro::setPreDelay(float t) {
+    preDelayTime = t;
     preDelay.setDelayTime(t * sampleRate);
 }
 
@@ -394,6 +403,9 @@ void Dattorro::setPreDelay(float t) {
 
 void Dattorro::setSampleRate(float newSampleRate) {
     sampleRate = newSampleRate;
+    // InterpDelay clamps to length - 1, so reserve one extra sample to make
+    // a full second selectable at every host sample rate.
+    preDelay = InterpDelay(static_cast<unsigned int>(std::ceil(sampleRate * kMaximumPreDelaySeconds)) + 1, 0.);
     tank.setSampleRate(sampleRate);
     dattorroScaleFactor = sampleRate / dattorroSampleRate;
     setPreDelay(preDelayTime);
