@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "ApolloLookAndFeel.h"
+#include "ApolloTheme.h"
 #include "PluginProcessor.h"
 
 // Keeps the existing automatable boolean parameter, but makes a mouse/keyboard
@@ -34,24 +35,34 @@ private:
     void timerCallback() override;
     void updateStatePresentation();
     void updateValueLabels();
+    void applyFontScale (float scale);
+
+    float getDesignScale() const;
+    juce::Rectangle<float> scaled (float x, float y, float w, float h) const;
 
     ApolloAudioProcessor& audioProcessor;
     ApolloLookAndFeel customLookAndFeel;
 
-    juce::Label titleLabel, globalStateLabel, helpLabel;
-    juce::GroupComponent reverbGroup, octaveGroup, performanceGroup, outputGroup;
-    juce::Label octaveStateLabel, performanceStateLabel;
+    // Physical modules (decorative back plates).
+    ApolloRackPanel reverbPanel      { "REVERB", "SPACE GENERATOR" };
+    ApolloRackPanel outputPanel      { "OUTPUT", "DRY / WET" };
+    ApolloRackPanel octavePanel      { "OCTAVE", "SIGNAL GENERATOR" };
+    ApolloRackPanel performancePanel { "PERFORMANCE", "OPERATIONAL CONTROL" };
+
+    // Console status annunciators (decorative, non-focusable).
+    ApolloAnnunciator lfoAnnunciator;
 
     juce::Slider faderMix;
     juce::Slider knobDecay, knobPredelay, knobDamp, knobModSpeed, knobModDepth, knobEq1, knobEq2;
-    juce::Label lblMix, lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth, lblEq1, lblEq2;
-    juce::Label valueMix, valueDecay, valuePredelay, valueDamp, valueModSpeed, valueModDepth, valueEq1, valueEq2;
+    juce::Label lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth, lblEq1, lblEq2;
+    juce::Label valueDecay, valuePredelay, valueDamp, valueModSpeed, valueModDepth, valueEq1, valueEq2;
+    juce::Label lblToneHigh, lblToneLow, lblDry, lblWet, lblPerformNote;
 
-    juce::ComboBox comboTimeScale, comboEffectMode, comboFootswitchMode;
+    ApolloSelector comboTimeScale, comboEffectMode, comboFootswitchMode;
     juce::Label lblTimeScale, lblEffectMode, lblFootswitchMode;
+    juce::Label lblInputDiffusion, lblOctaveDryMix;
     juce::ToggleButton btnInputDiffusion, btnOctaveDryMix, btnBypass;
     MomentaryGateButton btnMomentaryEffect;
-    juce::Label dryLabel, wetLabel;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> faderMixAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachDecay, attachPredelay, attachDamp, attachModSpeed, attachModDepth, attachEq1, attachEq2;

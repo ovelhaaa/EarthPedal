@@ -31,6 +31,7 @@ target_sources(Apollo
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/ApolloLookAndFeel.cpp
+        Source/ApolloTheme.cpp
         Source/DSP/Dattorro/Dattorro.cpp
         Source/DSP/Dattorro/dsp/delays/InterpDelay.cpp
         Source/DSP/Dattorro/dsp/filters/OnePoleFilters.cpp
@@ -63,7 +64,7 @@ target_include_directories(Apollo
 )
 
 juce_add_console_app(ApolloTest)
-target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/DSP/Dattorro/Dattorro.cpp Source/DSP/Dattorro/dsp/delays/InterpDelay.cpp Source/DSP/Dattorro/dsp/filters/OnePoleFilters.cpp Source/DSP/DaisySP/overdrive.cpp)
+target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp Source/DSP/Dattorro/Dattorro.cpp Source/DSP/Dattorro/dsp/delays/InterpDelay.cpp Source/DSP/Dattorro/dsp/filters/OnePoleFilters.cpp Source/DSP/DaisySP/overdrive.cpp)
 target_include_directories(ApolloTest PRIVATE Source Source/DSP)
 target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
