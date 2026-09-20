@@ -1,0 +1,73 @@
+# Golden Tests
+
+Executable: `shared/tests/golden_test.cpp` (target `golden_test`, registered via
+CTest as `golden`). Run:
+
+```bash
+cmake -S shared -B shared/build -DCMAKE_BUILD_TYPE=Release
+cmake --build shared/build -j
+ctest --test-dir shared/build --output-on-failure
+```
+
+## The frozen reference
+
+`shared/tests/golden/p0_48k.f32` and `p1_48k.f32` are mono float32 impulse
+responses (3 s @ 48 kHz) produced by `make_golden`, which uses the **production
+Apollo Dattorro plus earth.cpp's output stage** — not the shared core. This
+keeps the golden independent of the thing under test.
+
+| file | preset | mix |
+| --- | --- | --- |
+| `p0_48k.f32` | reverb only, Large, decay 0.877465, input diffusion on | 100 % wet |
+| `p1_48k.f32` | canonical default | 50 % |
+
+Regenerate (only if the golden must intentionally change):
+
+```bash
+cmake --build shared/build --target make_golden
+./shared/build/tests/make_golden shared/tests/golden
+```
+
+## What is asserted
+
+### 1. Golden @ 48 kHz
+
+| preset | max \|diff\| | null depth | required |
+| --- | --- | --- | --- |
+| P0 | 0 | −546 dB | bit-exact (max \|diff\| < 1e-6) |
+| P1 | 0 | −548 dB | bit-exact |
+
+### 2. Sample-rate invariance (wet only)
+
+| host | timing ref | leftDelay1 | RT30 |
+| --- | --- | --- | --- |
+| 44.1 kHz | 29400 | 399.00 ms | 5.38 s |
+| 48 kHz | 32000 | 399.00 ms | 5.28 s |
+| 96 kHz | 64000 | 399.00 ms | 5.21 s |
+| 192 kHz | 128000 | 399.00 ms | 5.31 s |
+
+Assertions: `timingReferenceRate == host * 2/3`; `leftDelay1` within 0.5 ms of
+the golden; RT30 within 0.45 s of 5.28 s; all samples finite.
+
+### 3. Block-size invariance
+
+Rendering the same input with block sizes 64, 128 and 512 must be
+**bit-identical** (max diff == 0). Because smoothing is per-sample, block size
+must not affect the output.
+
+### 4. Finite output
+
+NaN / Inf in any sample fails the test.
+
+## Why P0/P1 only (for now)
+
+The golden covers the reverb/output path. The octave branch (P3/P4/P5) and the
+overdrive (P7) are not yet in the core (G4/G5); their production default is
+inactive, so P0/P1 exercise the full currently-shipped path. Additional golden
+references for P3–P7 will be added with G4/G5.
+
+## CI
+
+`.github/workflows/dsp-parity.yml` configures, builds and runs CTest on
+`ubuntu-latest` for every change under `shared/`. The gate is the golden, the
+SR-invariance and the block-invariance assertions above.

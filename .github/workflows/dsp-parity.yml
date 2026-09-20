@@ -1,0 +1,29 @@
+name: DSP Parity (shared core)
+
+on:
+  push:
+    paths:
+      - 'shared/**'
+      - '.github/workflows/dsp-parity.yml'
+  pull_request:
+    paths:
+      - 'shared/**'
+      - '.github/workflows/dsp-parity.yml'
+  workflow_dispatch:
+
+jobs:
+  golden:
+    name: Golden / SR-invariance / block-invariance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S shared -B shared/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build shared/build -j
+
+      - name: Run parity gate
+        run: ctest --test-dir shared/build --output-on-failure
