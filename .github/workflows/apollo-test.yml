@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - 'Apollo/**'
+      - 'shared/**'
       - '.github/workflows/apollo-test.yml'
   pull_request:
     paths:
       - 'Apollo/**'
+      - 'shared/**'
       - '.github/workflows/apollo-test.yml'
   workflow_dispatch:
 
@@ -23,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Apollo/build
-          key: ${{ runner.os }}-msvc-cmake-${{ hashFiles('Apollo/CMakeLists.txt', 'Apollo/Source/**/*.cpp', 'Apollo/Source/**/*.h', 'Apollo/Source/**/*.hpp') }}
+          key: ${{ runner.os }}-msvc-cmake-${{ hashFiles('Apollo/CMakeLists.txt', 'Apollo/Source/**/*.cpp', 'Apollo/Source/**/*.h', 'Apollo/Source/**/*.hpp', 'shared/**/*.cpp', 'shared/**/*.h', 'shared/**/*.hpp') }}
           restore-keys: |
             ${{ runner.os }}-msvc-cmake-
 
