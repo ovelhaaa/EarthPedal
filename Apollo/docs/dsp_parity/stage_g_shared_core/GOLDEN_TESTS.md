@@ -20,10 +20,15 @@ keeps the golden independent of the thing under test.
 | --- | --- | --- |
 | `p0_48k.f32` | reverb only, Large, decay 0.877465, input diffusion on | 100 % wet |
 | `p1_48k.f32` | canonical default | 50 % |
+| `p2_mod_48k.f32` | modulation extreme (depth 1.0, speed 0.5) | 50 % |
 | `p3_up_48k.f32` | octave Up | 50 % |
 | `p4_down_48k.f32` | octave Down | 50 % |
 | `p5_both_48k.f32` | octave Both | 50 % |
 | `p7_overdrive_48k.f32` | Overdrive active (drive 0.6) | 50 % |
+| `p8_predelay100_48k.f32` | pre-delay 100 ms | 50 % |
+| `p9_predelay500_48k.f32` | pre-delay 500 ms | 50 % |
+| `p10_dry_48k.f32` | mix 0 % (dry only) | 0 % |
+| `p12_nodiffusion_48k.f32` | input diffusion off | 50 % |
 
 Regenerate (only if the golden must intentionally change):
 
@@ -40,10 +45,18 @@ cmake --build shared/build --target make_golden
 | --- | --- | --- | --- |
 | P0 | 0 | −546 dB | bit-exact (max \|diff\| < 1e-6) |
 | P1 | 0 | −548 dB | bit-exact |
+| P2 (mod extreme) | 0 | −548 dB | bit-exact |
 | P3 (Up) | 0 | −546 dB | bit-exact |
 | P4 (Down) | 0 | −546 dB | bit-exact |
 | P5 (Both) | 0 | −546 dB | bit-exact |
 | P7 (Overdrive) | 0 | −552 dB | bit-exact |
+| P8 (pre-delay 100 ms) | 0 | −548 dB | bit-exact |
+| P9 (pre-delay 500 ms) | 0 | −547 dB | bit-exact |
+| P10 (dry) | 0 | −548 dB | bit-exact |
+| P12 (no input diffusion) | 0 | −549 dB | bit-exact |
+
+P6 (Freeze) is a stateful transition; it is covered by the functional test in
+GOLDEN_TESTS §4 rather than a static golden. P11 (mix 100 %) equals P0.
 
 ### 2. Sample-rate invariance (wet only)
 

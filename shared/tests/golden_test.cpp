@@ -87,14 +87,23 @@ static void testGolden(const fs::path& goldenDir, const fs::path& dumpDir) {
         OctaveMode mode;
         earth::PerformanceMode perf = earth::PerformanceMode::Freeze;
         bool active = false;
+        float preDelay = 0.0f;
+        float modDepth = 0.0625f;
+        float modSpeed = 0.0466667f;
+        bool inputDiffusion = true;
     };
     const Case cases[] = {
         {"p0_48k.f32", 1.0f, OctaveMode::Off},
         {"p1_48k.f32", 0.5f, OctaveMode::Off},
+        {"p2_mod_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Freeze, false, 0.0f, 1.0f, 0.5f},
         {"p3_up_48k.f32", 0.5f, OctaveMode::Up},
         {"p4_down_48k.f32", 0.5f, OctaveMode::Down},
         {"p5_both_48k.f32", 0.5f, OctaveMode::Both},
         {"p7_overdrive_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Overdrive, true},
+        {"p8_predelay100_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Freeze, false, 0.1f},
+        {"p9_predelay500_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Freeze, false, 0.5f},
+        {"p10_dry_48k.f32", 0.0f, OctaveMode::Off},
+        {"p12_nodiffusion_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Freeze, false, 0.0f, 0.0625f, 0.0466667f, false},
     };
 
     for (const auto& c : cases) {
@@ -111,6 +120,10 @@ static void testGolden(const fs::path& goldenDir, const fs::path& dumpDir) {
         p.octaveMode = c.mode;
         p.performanceMode = c.perf;
         p.performanceActive = c.active;
+        p.preDelaySeconds = c.preDelay;
+        p.modulationDepth = c.modDepth;
+        p.modulationSpeed = c.modSpeed;
+        p.inputDiffusion = c.inputDiffusion;
         core.setParameters(p);
         core.snapParameters();
 

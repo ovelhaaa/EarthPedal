@@ -52,7 +52,7 @@ and keeps delay timing and RT stable across every supported rate.
 | 11 | Shared octave enum | done (`EarthEnums.h`); adapters pending |
 | 12 | Single dry-routing semantic | implemented (`includeDryInOctavePath`); adapter translation pending |
 | 13 | APVTS compatibility | untouched; adapter pending (G7) |
-| 14 | P0–P9 exist | P0/P1/P3/P4/P5/P7 golden; P6 functional; P2/P8–P12 pending adapters |
+| 14 | P0–P9 exist | P0/P1/P2/P3/P4/P5/P7/P8/P9/P10/P12 golden bit-exact; P6 functional; P11 == P0 |
 | 15 | Block-size invariance tested | done (reverb and octave) |
 | 16 | 44.1/48/96/192 pass | done (reverb + octave sanity) |
 | 17 | Web↔VST null within threshold | not yet (needs adapters + Emscripten) |
