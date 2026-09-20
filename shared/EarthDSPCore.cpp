@@ -30,6 +30,7 @@ constexpr float kOdBaseDrive = 0.4f;
 constexpr float kOdActiveDrive = 0.6f;
 constexpr float kOdReleaseThreshold = 0.41f;
 constexpr double kOdSwellSeconds = 0.015;
+constexpr double kBypassSmoothingSeconds = 0.01;
 
 inline bool isOverdriveActive(const EarthParameters& p) {
     return p.performanceActive && p.performanceMode == PerformanceMode::Overdrive;
@@ -71,6 +72,7 @@ void EarthDSPCore::prepare(double sampleRate, int /*maximumBlockSize*/) {
     mix_.setTime(sampleRate, kMixSmoothingSeconds);
     damp_.setTime(sampleRate, kParamSmoothingSeconds);
     odSwell_.setTime(sampleRate, kOdSwellSeconds);
+    bypass_.setTime(sampleRate, kBypassSmoothingSeconds);
 
     lastTimeScale_ = -1.0f;
     lastDamp_ = -1.0f;
@@ -229,6 +231,7 @@ void EarthDSPCore::setParameters(const EarthParameters& parameters) {
                         parameters.performanceMode == PerformanceMode::Freeze;
     decay_.setTarget(freeze ? 1.0f : parameters.decay);
     odSwell_.setTarget(isOverdriveActive(parameters) ? kOdActiveDrive : kOdBaseDrive);
+    bypass_.setTarget(parameters.bypass ? 1.0f : 0.0f);
 
     if (prepared_) {
         applyStaticParameters(parameters);
@@ -246,6 +249,7 @@ void EarthDSPCore::snapParameters() {
                         params_.performanceMode == PerformanceMode::Freeze;
     decay_.snap(freeze ? 1.0f : params_.decay);
     odSwell_.snap(isOverdriveActive(params_) ? kOdActiveDrive : kOdBaseDrive);
+    bypass_.snap(params_.bypass ? 1.0f : 0.0f);
     odOn_ = isOverdriveActive(params_);
     applyStaticParameters(params_);
     updateShelves();
@@ -332,9 +336,11 @@ void EarthDSPCore::process(const float* inputLeft, const float* inputRight,
         float outL = inL * dryGain + wetL * wetGain * kWetHeadroom;
         float outR = inR * dryGain + wetR * wetGain * kWetHeadroom;
 
-        if (params_.bypass) {
-            outL = inL;
-            outR = inR;
+        // Bypass crossfade (0 = active, 1 = bypassed), smoothed to avoid clicks.
+        const float bp = bypass_.next();
+        if (bp > 0.0f) {
+            outL = outL * (1.0f - bp) + inL * bp;
+            outR = outR * (1.0f - bp) + inR * bp;
         }
 
         outputLeft[i] = outL;

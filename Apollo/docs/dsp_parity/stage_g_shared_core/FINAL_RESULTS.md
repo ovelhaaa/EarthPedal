@@ -40,7 +40,7 @@ and keeps delay timing and RT stable across every supported rate.
 | # | Criterion | Status |
 | --- | --- | --- |
 | 1 | Single shared `EarthDSPCore` exists | done (reverb + octave + overdrive + freeze) |
-| 2 | Web and JUCE use the core | not yet (G6/G7) |
+| 2 | Web and JUCE use the core | done at source (G6/G7); not build-verified |
 | 3 | Default is `LegacySrInvariant` | done |
 | 4 | Golden @48k preserved | done, bit-exact (P0/P1/P3/P4/P5/P7) |
 | 5 | Tank diffusion 0.7 centralised | done (`EarthDSPCore::prepare`) |
@@ -63,9 +63,10 @@ and keeps delay timing and RT stable across every supported rate.
 ## Explicit answers
 
 **Web and VST now run the same algorithm?**
-Not yet. A shared, validated core exists for the reverb/output path, but the
-two wrappers still carry the legacy DSP. No sonic rule has been removed from the
-wrappers yet; that happens in G6/G7 after the core is complete.
+At the source level, yes: both `src/wasm_wrapper.cpp` and
+`Apollo/Source/PluginProcessor.{h,cpp}` are thin adapters over `EarthDSPCore`
+and contain no DSP. Build/runtime equivalence is unverified here (no Emscripten
+or JUCE toolchain); the G8 null test will confirm it.
 
 **Was the Golden Web@48k preserved?**
 Yes, for the implemented path: the shared core is bit-identical to the frozen
@@ -76,9 +77,10 @@ Yes for the reverb path: `leftDelay1` is 399.00 ms and RT30 stays within
 5.21–5.38 s across 44.1/48/96/192 kHz.
 
 **Is any sonic rule still duplicated in the wrappers?**
-Yes, all of the legacy wrapper DSP remains duplicated because the wrappers have
-not been migrated. That is the explicit subject of G6/G7; nothing was deleted
-before validation, per the migration rule.
+No. Both wrappers now only translate parameters and call `EarthDSPCore`. The
+legacy implementations are kept as `*_legacy.*` files on disk (not compiled) for
+rollback until the builds and the null test pass (G8). The removed-behaviour
+differences are documented in `MIGRATION_LOG.md`.
 
 ## Environment note
 

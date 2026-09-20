@@ -1,6 +1,47 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+using earth::EarthParameters;
+using earth::OctaveMode;
+using earth::PerformanceMode;
+using earth::ReverbSize;
+
+namespace {
+
+ReverbSize mapReverbSize(int choice)
+{
+    switch (choice)
+    {
+        case 0: return ReverbSize::Small;
+        case 1: return ReverbSize::Medium;
+        default: return ReverbSize::Large;
+    }
+}
+
+// APVTS effect_mode: 0 None, 1 Up Octave, 2 Down Octave, 3 Both Octaves.
+OctaveMode mapOctaveMode(int choice)
+{
+    switch (choice)
+    {
+        case 1: return OctaveMode::Up;
+        case 2: return OctaveMode::Down;
+        case 3: return OctaveMode::Both;
+        default: return OctaveMode::Off;
+    }
+}
+
+PerformanceMode mapPerformanceMode(int choice)
+{
+    switch (choice)
+    {
+        case 0: return PerformanceMode::Freeze;
+        case 1: return PerformanceMode::Overdrive;
+        default: return PerformanceMode::Octave;
+    }
+}
+
+} // namespace
+
 ApolloAudioProcessor::ApolloAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -10,40 +51,29 @@ ApolloAudioProcessor::ApolloAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ),
-       apvts(*this, nullptr, "Parameters", createParameterLayout()),
-       reverb(48000, 16, 4.0) // samplerate, max_lfo_depth, max_timescale
+       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
-    overdriveLeft.Init();
-    overdriveRight.Init();
-    std::cout << "[Diagnostic 1d] ApolloAudioProcessor CONSTRUCTED. State fully reset." << std::endl;
 }
 
-ApolloAudioProcessor::~ApolloAudioProcessor()
-{
-    if (measure_count_in > 0) {
-        double rms_in = std::sqrt(energy_in_above_24k / measure_count_in);
-        double rms_out = std::sqrt(energy_out_above_24k / measure_count_out);
-        std::cout << "[Diagnostic 1a] SR=" << getSampleRate() << " | RMS > 24kHz IN: " << rms_in << " | RMS > 24kHz OUT (after Lagrange): " << rms_out << std::endl;
-    }
-}
+ApolloAudioProcessor::~ApolloAudioProcessor() {}
 
 juce::AudioProcessorValueTreeState::ParameterLayout ApolloAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Knobs
+    // Knobs (ids, ranges, defaults preserved).
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"predelay", 1}, "Pre-Delay", 0.0f, 1.0f, 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"mix", 1}, "Mix", 0.0f, 1.0f, 0.5f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"decay", 1}, "Decay", 0.0f, 1.0f, 0.877f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"decay", 1}, "Decay", 0.0f, 1.0f, 0.877465f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"moddepth", 1}, "Mod Depth", 0.0f, 1.0f, 0.0625f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"modspeed", 1}, "Mod Speed", 0.0f, 1.0f, 0.0466f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"modspeed", 1}, "Mod Speed", 0.0f, 1.0f, 0.0466667f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"damp", 1}, "Damp", 0.0f, 1.0f, 0.5f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"eq1_gain", 1}, "EQ1 Gain", -24.0f, 24.0f, -11.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"eq2_gain", 1}, "EQ2 Gain", -24.0f, 24.0f, 5.0f));
 
     // Toggle Switches
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"time_scale", 1}, "Time Scale", juce::StringArray{"Small", "Medium", "Large"}, 2)); // Default Large
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"effect_mode", 1}, "Effect Mode", juce::StringArray{"None", "Up Octave", "Down Octave", "Both Octaves"}, 0)); // Default None
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"time_scale", 1}, "Time Scale", juce::StringArray{"Small", "Medium", "Large"}, 2));
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"effect_mode", 1}, "Effect Mode", juce::StringArray{"None", "Up Octave", "Down Octave", "Both Octaves"}, 0));
     params.push_back(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"footswitch_mode", 1}, "Momentary Mode", juce::StringArray{"Freeze", "Overdrive", "Effect"}, 0));
 
     // Dip Switches & Toggles
@@ -59,133 +89,17 @@ const juce::String ApolloAudioProcessor::getName() const { return "Apollo"; }
 bool ApolloAudioProcessor::acceptsMidi() const { return false; }
 bool ApolloAudioProcessor::producesMidi() const { return false; }
 bool ApolloAudioProcessor::isMidiEffect() const { return false; }
-double ApolloAudioProcessor::getTailLengthSeconds() const { return 0.0; }
+double ApolloAudioProcessor::getTailLengthSeconds() const { return 8.0; }
 int ApolloAudioProcessor::getNumPrograms() { return 1; }
 int ApolloAudioProcessor::getCurrentProgram() { return 0; }
 void ApolloAudioProcessor::setCurrentProgram (int index) { juce::ignoreUnused(index); }
 const juce::String ApolloAudioProcessor::getProgramName (int index) { juce::ignoreUnused(index); return {}; }
 void ApolloAudioProcessor::changeProgramName (int index, const juce::String& newName) { juce::ignoreUnused(index, newName); }
 
-void ApolloAudioProcessor::initialiseReverbDSP()
-{
-    // Values from earth.cpp:642-657 and src/wasm_wrapper.cpp:24-38. Without
-    // these calls the tank all-pass diffusers keep gain 0 and the tank filters
-    // keep their 22049/10 Hz defaults, which sounds sparse and echoey.
-    reverb.setPreDelay(0.0f);
-    reverb.setInputFilterLowCutoffPitch(0.0f);   // 13.75 Hz
-    reverb.setInputFilterHighCutoffPitch(10.0f); // 14080 Hz
-    reverb.enableInputDiffusion(true);
-    reverb.setDecay(0.877465f);
-    reverb.setTankDiffusion(0.7f);
-    reverb.setTankFilterLowCutFrequency(0.0f);   // 13.75 Hz
-    reverb.setTankFilterHighCutFrequency(10.0f); // 14080 Hz
-    reverb.setTankModSpeed(1.0f);
-    reverb.setTankModDepth(0.5f);
-    reverb.setTankModShape(0.5f);
-}
-
 void ApolloAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // std::cout << "    [prepareToPlay] reverb.setSampleRate..." << std::endl;
-    reverb.setSampleRate((float)sampleRate);
-    initialiseReverbDSP();
-    // std::cout << "    [prepareToPlay] reverb.clear..." << std::endl;
-    reverb.clear();
-
-    // std::cout << "    [prepareToPlay] init OctaveGenerator..." << std::endl;
-    // The OctaveGenerator is instantiated with 48000 Hz, since it runs in the resampled branch.
-    octave = std::make_unique<OctaveGenerator>(48000.0f / resample_factor);
-    
-    // std::cout << "    [prepareToPlay] IIR Filter setup..." << std::endl;
-    // Replace cycfi q filters with JUCE DSP IIR filters. These process the
-    // already-reconstructed 48 kHz octave signal (eq1.processSample is called
-    // on out_chunk), so the coefficients must be designed at 48 kHz. Previously
-    // they were designed at 48000/resample_factor = 8 kHz, shifting the 140/160
-    // Hz corners up ~6x. See docs/dsp_parity/ANALYSIS.md item 7.
-    eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f, 140.0f, 0.707f, juce::Decibels::decibelsToGain(-11.0f));
-    eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f, 160.0f, 0.707f, juce::Decibels::decibelsToGain(5.0f));
-    
-    juce::dsp::ProcessSpec spec { 48000.0, (juce::uint32)samplesPerBlock, 1 };
-    // std::cout << "    [prepareToPlay] IIR eq1.prepare..." << std::endl;
-    eq1.prepare(spec);
-    // std::cout << "    [prepareToPlay] IIR eq2.prepare..." << std::endl;
-    eq2.prepare(spec);
-    eq1.reset();
-    eq2.reset();
-
-    // std::cout << "    [prepareToPlay] overdriveInit..." << std::endl;
-    overdriveLeft.Init();
-    overdriveRight.Init();
-    overdriveLeft.SetDrive(0.4f);
-    overdriveRight.SetDrive(0.4f);
-
-    // std::cout << "    [prepareToPlay] smoothers reset..." << std::endl;
-    // Smoothers setup
-    current_predelay.reset(sampleRate, 0.005);
-    current_moddepth.reset(sampleRate, 0.005);
-    current_modspeed.reset(sampleRate, 0.005);
-    current_freezeDecay.reset(sampleRate, 0.005);
-    current_ODswell.reset(sampleRate, 0.015);
-    bypassFade.reset(sampleRate, 0.01); // 10ms smooth
-
-    // std::cout << "    [prepareToPlay] smoothers load..." << std::endl;
-    // Ensure parameters match defaults immediately
-    current_predelay.setCurrentAndTargetValue(apvts.getRawParameterValue("predelay")->load());
-    current_moddepth.setCurrentAndTargetValue(apvts.getRawParameterValue("moddepth")->load());
-    current_modspeed.setCurrentAndTargetValue(apvts.getRawParameterValue("modspeed")->load());
-    current_freezeDecay.setCurrentAndTargetValue(apvts.getRawParameterValue("decay")->load());
-    current_ODswell.setCurrentAndTargetValue(0.4f);
-    bypassFade.setCurrentAndTargetValue(0.0f);
-
-    // Resampler setup
-    octaveResamplerUp.reset();
-    octaveResamplerDown.reset();
-    
-    // Anti-alias filter (8th order Butterworth LPF)
-    // Cutoff: min(23000.0, sampleRate * 0.45)
-    double cutoff = juce::jmin(23000.0, sampleRate * 0.45);
-    auto filterCoeffs = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(cutoff, sampleRate, 8);
-    juce::dsp::ProcessSpec hostSpec { sampleRate, (juce::uint32)samplesPerBlock, 1 };
-    
-    for (int i = 0; i < 4; ++i) {
-        if (i < filterCoeffs.size())
-            antiAliasFilters[i].coefficients = filterCoeffs[i];
-        antiAliasFilters[i].prepare(hostSpec);
-        antiAliasFilters[i].reset();
-    }
-    
-    // Sliding window FIFOs
-    slideUp.setSize(1, 4096);
-    slideUp.clear();
-    slideUpValid = 0;
-    phaseUp = 0.0;
-    
-    slideDown.setSize(1, 4096);
-    slideDown.clear();
-    // Pre-fill with latency to absorb fractional block jitter (e.g., 64 samples at 48kHz)
-    slideDownValid = 64;
-    phaseDown = 0.0;
-    
-    int max48kSamples = (int)(samplesPerBlock * (48000.0 / sampleRate)) + 32;
-    resampleBuffer48k.setSize(1, max48kSamples);
-    
-    // Latency compensation for the Dry signal
-    juce::dsp::ProcessSpec hostSpecDelay { sampleRate, (juce::uint32)samplesPerBlock, 1 };
-    dryDelayL.prepare(hostSpecDelay);
-    dryDelayR.prepare(hostSpecDelay);
-    
-    // Total 48kHz latency: 64 (slideDown) + 22 (FIR dec/int) = 86 samples at 48kHz.
-    // Plus ~1.5 for Lagrange up/down = ~89 samples at 48kHz.
-    // We convert this 48kHz-domain latency to host sample rate latency:
-    float latencySamples = 89.0f * (float)(sampleRate / 48000.0);
-    // Add additional latency for the anti-alias IIR filters (approx 8 samples)
-    latencySamples += 8.0f; 
-    
-    dryDelayL.setDelay(latencySamples);
-    dryDelayR.setDelay(latencySamples);
-    
-    // Report latency to host (if you want the DAW to compensate)
-    setLatencySamples((int)latencySamples);
+    core_.prepare(sampleRate, samplesPerBlock);
+    setLatencySamples(core_.getLatencySamples());
 }
 
 void ApolloAudioProcessor::releaseResources() {}
@@ -203,320 +117,50 @@ void ApolloAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 {
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
-    auto numSamples = buffer.getNumSamples();
+    const auto numSamples = buffer.getNumSamples();
     if (numSamples == 0) return;
 
-    // std::cout << "      [processBlock] Started block of size " << numSamples << std::endl;
+    EarthParameters p = EarthParameters::defaults();
+    p.preDelaySeconds     = apvts.getRawParameterValue("predelay")->load();
+    p.mix                 = apvts.getRawParameterValue("mix")->load();
+    p.decay               = apvts.getRawParameterValue("decay")->load();
+    p.modulationDepth     = apvts.getRawParameterValue("moddepth")->load();
+    p.modulationSpeed     = apvts.getRawParameterValue("modspeed")->load();
+    p.damp                = apvts.getRawParameterValue("damp")->load();
+    p.octaveHighShelfDb   = apvts.getRawParameterValue("eq1_gain")->load();
+    p.octaveLowShelfDb    = apvts.getRawParameterValue("eq2_gain")->load();
 
-    // Parameters
-    float vpredelay = apvts.getRawParameterValue("predelay")->load();
-    float vmix = apvts.getRawParameterValue("mix")->load();
-    float vdecay = apvts.getRawParameterValue("decay")->load();
-    float vmoddepth = apvts.getRawParameterValue("moddepth")->load();
-    float vmodspeed = apvts.getRawParameterValue("modspeed")->load();
-    float vdamp = apvts.getRawParameterValue("damp")->load();
-    float veq1 = apvts.getRawParameterValue("eq1_gain")->load();
-    float veq2 = apvts.getRawParameterValue("eq2_gain")->load();
-    
-    int toggleValues0 = static_cast<int>(std::round(apvts.getRawParameterValue("time_scale")->load()));
-    int effect_mode = static_cast<int>(std::round(apvts.getRawParameterValue("effect_mode")->load()));
-    int footswitch_mode = static_cast<int>(std::round(apvts.getRawParameterValue("footswitch_mode")->load()));
-    
-    bool input_diffusion = apvts.getRawParameterValue("input_diffusion")->load();
-    bool octave_dry_mix = apvts.getRawParameterValue("octave_dry_mix")->load();
-    bool momentary_effect = apvts.getRawParameterValue("momentary_effect")->load();
-    bool isBypass = apvts.getRawParameterValue("bypass")->load();
+    const int timeScale   = (int) std::round(apvts.getRawParameterValue("time_scale")->load());
+    const int effectMode  = (int) std::round(apvts.getRawParameterValue("effect_mode")->load());
+    const int footswitch  = (int) std::round(apvts.getRawParameterValue("footswitch_mode")->load());
 
-    // Time scale update
-    float setTimeScale = 2.0f;
-    if (toggleValues0 == 0) setTimeScale = 1.0f;
-    else if (toggleValues0 == 2) setTimeScale = 4.0f;
-    reverb.setTimeScale(setTimeScale);
+    p.reverbSize     = mapReverbSize(timeScale);
+    p.inputDiffusion = apvts.getRawParameterValue("input_diffusion")->load();
 
-    // Momentary logic
-    if (footswitch_mode == 0 && momentary_effect) freeze = true; else freeze = false;
-    if (footswitch_mode == 1 && momentary_effect) {
-        setOD = 0.6f;
-        odOn = true;
-    } else {
-        setOD = 0.4f;
-    }
-    
-    // Mix smoothing logic (energy constant crossfade)
-    if (pmix != vmix) {
-        float x2 = 1.0f - vmix;
-        float A = vmix * x2;
-        float B = A * (1.0f + 1.4186f * A);
-        float C = B + vmix;
-        float D = B + x2;
-        current_wetMix.setTargetValue(C * C);
-        current_dryMix.setTargetValue(D * D);
-        pmix = vmix;
-    }
+    // Canonical inner-dry semantic. The legacy APVTS id and stored value are
+    // preserved; the meaning is now positive (ON = include 0.5*dry), matching
+    // the Web/earth reference. See PARAMETER_ADAPTERS.md.
+    p.includeDryInOctavePath = apvts.getRawParameterValue("octave_dry_mix")->load();
 
-    // Damp update
-    if (pdamp != vdamp) {
-        if (vdamp < 0.5f) {
-            float reverbDampHigh = vdamp * 2.0f;
-            reverb.setInputFilterHighCutoffPitch(7.0f * reverbDampHigh + 3.0f);
-        } else {
-            float reverbDampLow = (vdamp - 0.5f) * 2.0f;
-            reverb.setInputFilterLowCutoffPitch(9.0f * reverbDampLow);
-        }
-        pdamp = vdamp;
-    }
-    
-    if (peq1 != veq1) {
-        eq1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(48000.0f, 140.0f, 0.707f, juce::Decibels::decibelsToGain(veq1));
-        peq1 = veq1;
-    }
-    if (peq2 != veq2) {
-        eq2.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(48000.0f, 160.0f, 0.707f, juce::Decibels::decibelsToGain(veq2));
-        peq2 = veq2;
-    }
+    const bool momentary = apvts.getRawParameterValue("momentary_effect")->load();
+    p.performanceMode  = mapPerformanceMode(footswitch);
+    p.performanceActive = momentary;
 
-    reverb.enableInputDiffusion(input_diffusion);
+    // Octave selection. In "Effect" momentary mode the octave only engages
+    // while held; otherwise it follows effect_mode directly.
+    OctaveMode octave = mapOctaveMode(effectMode);
+    if (footswitch == 2 && !momentary)
+        octave = OctaveMode::Off;
+    p.octaveMode = octave;
 
-    // Bypass Fade Logic
-    bypassFade.setTargetValue(isBypass ? 1.0f : 0.0f);
+    p.bypass = apvts.getRawParameterValue("bypass")->load();
 
-    // std::cout << "      [processBlock] Setting up Octave branch..." << std::endl;
-    // --- OCTAVE BRANCH (RESAMPLED TO 48kHz) ---
-    juce::AudioBuffer<float> octaveOutTemp(1, numSamples);
-    octaveOutTemp.clear();
+    core_.setParameters(p);
 
-    if (effect_mode != 0) {
-        // Average inputs for the mono octave path
-        juce::AudioBuffer<float> monoInput(1, numSamples);
-        monoInput.copyFrom(0, 0, buffer, 0, 0, numSamples);
-        if (buffer.getNumChannels() > 1) {
-            monoInput.addFrom(0, 0, buffer, 1, 0, numSamples);
-            monoInput.applyGain(0.5f);
-        }
+    auto* channelDataL = buffer.getWritePointer(0);
+    auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : channelDataL;
 
-        // Apply anti-aliasing filter (8th order = 4 biquads) in-place
-        auto* monoPtr = monoInput.getWritePointer(0);
-        for (int i = 0; i < numSamples; ++i) {
-            float s = monoPtr[i];
-            for (int f = 0; f < 4; ++f)
-                s = antiAliasFilters[f].processSample(s);
-            monoPtr[i] = s;
-        }
-
-        // Measure energy > 24kHz IN (after LPF)
-        for (int i = 0; i < numSamples; ++i) {
-            float x = monoInput.getSample(0, i);
-            float y = 0.5f * (x - prev_x_in);
-            prev_x_in = x;
-            energy_in_above_24k += (double)(y * y);
-            measure_count_in++;
-        }
-
-        // Append to slideUp FIFO
-        slideUp.copyFrom(0, slideUpValid, monoInput, 0, 0, numSamples);
-        slideUpValid += numSamples;
-
-        // Calculate how many 48kHz samples we can generate (leave 4 samples for interpolation margin)
-        double ratioUp = getSampleRate() / 48000.0;
-        int samples48k_to_generate = 0;
-        if (slideUpValid > 4) {
-            // How many output samples can we produce before phaseUp + (N * ratioUp) > (slideUpValid - 4)?
-            double maxConsumed = (double)(slideUpValid - 4);
-            samples48k_to_generate = (int)std::floor((maxConsumed - phaseUp) / ratioUp);
-        }
-
-        if (samples48k_to_generate > 0) {
-            // Resample Up to 48kHz
-            octaveResamplerUp.process(ratioUp, slideUp.getReadPointer(0), resampleBuffer48k.getWritePointer(0), samples48k_to_generate);
-
-            if (!printed1c) {
-                std::cout << "[Diagnostic 1b] octave_dry_mix applied INSIDE the 48kHz resampled loop. Mix is calculated over 48k buffers." << std::endl;
-                std::cout << "[Diagnostic 1c] SR=" << getSampleRate() << " | Host numSamples: " << numSamples << " | resampled samples48k_to_generate: " << samples48k_to_generate << " | ratioUp: " << ratioUp << std::endl;
-                std::cout << "                decimator chunk size: 6 | samples48k % 6 = " << (samples48k_to_generate % 6) << std::endl;
-                printed1c = true;
-            }
-
-            // Measure energy > 24kHz OUT
-            for (int i = 0; i < samples48k_to_generate; ++i) {
-                float x = resampleBuffer48k.getSample(0, i);
-                float y = 0.5f * (x - prev_x_out);
-                prev_x_out = x;
-                energy_out_above_24k += (double)(y * y);
-                measure_count_out++;
-            }
-
-            // Calculate exactly how many input samples were consumed
-            double exactConsumedUp = samples48k_to_generate * ratioUp;
-            int consumedUp = (int)std::floor(phaseUp + exactConsumedUp);
-            phaseUp = (phaseUp + exactConsumedUp) - consumedUp;
-            
-            if (consumedUp > slideUpValid) consumedUp = slideUpValid;
-            
-            // Shift slideUp
-            int remainingUp = slideUpValid - consumedUp;
-            for (int i = 0; i < remainingUp; ++i) {
-                slideUp.setSample(0, i, slideUp.getSample(0, consumedUp + i));
-            }
-            slideUpValid = remainingUp;
-
-            // Process Octave at 48kHz
-            for (int i = 0; i < samples48k_to_generate; ++i) {
-                float inSample = resampleBuffer48k.getSample(0, i);
-                buff[bin_counter] = inSample;
-                
-                if (bin_counter > 4) {
-                    std::span<const float, resample_factor> in_chunk(&(buff[0]), resample_factor);
-                    const auto sample = decimate(in_chunk); 
-                    
-                    float octave_mix = 0.0f;
-                    octave->update(sample);
-
-                    if (effect_mode == 1 || effect_mode == 3) {
-                        octave_mix += octave->up1() * 2.0f;
-                    }
-                    if (effect_mode == 2 || effect_mode == 3) {
-                        octave_mix += octave->down1() * 2.0f;
-                        octave_mix += octave->down2() * 2.0f;
-                    }
-
-                    auto out_chunk = interpolate(octave_mix);
-                    for (size_t j = 0; j < out_chunk.size(); ++j)
-                    {
-                        float eqSample = eq1.processSample(out_chunk[j]);
-                        float mix = eq2.processSample(eqSample);
-
-                        float dryLevel = 0.5f;
-                        if (!octave_dry_mix || effect_mode == 2) 
-                            mix += dryLevel * buff[j];
-                            
-                        buff_out[j] = mix;
-                    }
-                }
-                
-                bin_counter += 1;
-                if (bin_counter > 5) bin_counter = 0;
-                
-                resampleBuffer48k.setSample(0, i, buff_out[bin_counter]);
-            }
-
-            // Append processed 48kHz samples to slideDown FIFO
-            slideDown.copyFrom(0, slideDownValid, resampleBuffer48k, 0, 0, samples48k_to_generate);
-            slideDownValid += samples48k_to_generate;
-        }
-
-        // Resample Down to Host Sample Rate (we MUST produce EXACTLY numSamples)
-        double ratioDown = 48000.0 / getSampleRate();
-        
-        // We need (numSamples * ratioDown) + 4 samples
-        double exactConsumedDown = numSamples * ratioDown;
-        int required48k = (int)std::floor(phaseDown + exactConsumedDown) + 4;
-        
-        if (slideDownValid >= required48k) {
-            octaveResamplerDown.process(ratioDown, slideDown.getReadPointer(0), octaveOutTemp.getWritePointer(0), numSamples);
-            
-            int consumedDown = (int)std::floor(phaseDown + exactConsumedDown);
-            phaseDown = (phaseDown + exactConsumedDown) - consumedDown;
-            
-            if (consumedDown > slideDownValid) consumedDown = slideDownValid;
-            
-            int remainingDown = slideDownValid - consumedDown;
-            for (int i = 0; i < remainingDown; ++i) {
-                slideDown.setSample(0, i, slideDown.getSample(0, consumedDown + i));
-            }
-            slideDownValid = remainingDown;
-        } else {
-            // Underrun! The pre-filled latency should prevent this in steady state.
-            octaveOutTemp.clear();
-        }
-    }
-    
-    // std::cout << "      [processBlock] Setting target parameters smoothing..." << std::endl;
-    // Target parameters smoothing
-    current_predelay.setTargetValue(vpredelay);
-    current_moddepth.setTargetValue(vmoddepth);
-    current_modspeed.setTargetValue(vmodspeed);
-    if (freeze) {
-        current_freezeDecay.setTargetValue(1.0f);
-    } else {
-        current_freezeDecay.setTargetValue(vdecay);
-    }
-    
-    if (odOn) {
-        current_ODswell.setTargetValue(setOD);
-    } else {
-        current_ODswell.setTargetValue(0.4f);
-    }
-
-    // std::cout << "      [processBlock] Main DSP loop..." << std::endl;
-    // --- MAIN DSP LOOP (HOST RATE) ---
-    auto* channelDataL = buffer.getWritePointer (0);
-    auto* channelDataR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : channelDataL;
-
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float fade = bypassFade.getNextValue();
-
-        // Parameter smoothing applied every sample
-        reverb.setPreDelay(current_predelay.getNextValue());
-        reverb.setTankModDepth(current_moddepth.getNextValue() * 8.0f);
-        reverb.setTankModSpeed(0.3f + current_modspeed.getNextValue() * 15.0f);
-        reverb.setDecay(current_freezeDecay.getNextValue());
-        
-        float currentOD = current_ODswell.getNextValue();
-        if (odOn) {
-            overdriveLeft.SetDrive(currentOD);
-            overdriveRight.SetDrive(currentOD);
-            if (currentOD < 0.41f && !momentary_effect) {
-                odOn = false;
-            }
-        }
-
-        float dryMix = current_dryMix.getNextValue();
-        float wetMix = current_wetMix.getNextValue();
-
-        float inputL = channelDataL[i];
-        float inputR = channelDataR[i];
-        
-        // Sum to mono for EarthPedal algorithm
-        float monoIn = (inputL + inputR) * 0.5f;
-
-        float reverb_in = monoIn;
-        if (effect_mode != 0) {
-            if ((footswitch_mode == 2 && momentary_effect) || (footswitch_mode != 2)) {
-                reverb_in = octaveOutTemp.getSample(0, i);
-            }
-        }
-
-        // Calculate Reverb
-        reverb.process(reverb_in, reverb_in); // L/R identical input for mono source
-
-        float reverbLeftOut = reverb.getLeftOutput();  
-        float reverbRightOut = reverb.getRightOutput();
-        float effectLeftOut = 0.0f;
-        float effectRightOut = 0.0f;
-
-        if (odOn) {
-            effectLeftOut = overdriveLeft.Process(reverbLeftOut * 0.25f) * (1.0f - (currentOD * currentOD * 2.8f - 0.1296f));
-            effectRightOut = overdriveRight.Process(reverbRightOut * 0.25f) * (1.0f - (currentOD * currentOD * 2.8f - 0.1296f));
-        } else {
-            effectLeftOut = reverbLeftOut;
-            effectRightOut = reverbRightOut;
-        }
-        // Final Mix (using delayed dry signal)
-        float delayedInputL = dryDelayL.popSample(0, dryDelayL.getDelay());
-        float delayedInputR = dryDelayR.popSample(0, dryDelayR.getDelay());
-        dryDelayL.pushSample(0, inputL);
-        dryDelayR.pushSample(0, inputR);
-
-        float leftOutput = delayedInputL * dryMix + effectLeftOut * wetMix * 0.4f;
-        float rightOutput = delayedInputR * dryMix + effectRightOut * wetMix * 0.4f;
-
-        // Apply bypass crossfade
-        channelDataL[i] = inputL * fade + leftOutput * (1.0f - fade);
-        if (buffer.getNumChannels() > 1) {
-            channelDataR[i] = inputR * fade + rightOutput * (1.0f - fade);
-        }
-    }
+    core_.process(channelDataL, channelDataR, channelDataL, channelDataR, numSamples);
 }
 
 bool ApolloAudioProcessor::hasEditor() const { return true; }

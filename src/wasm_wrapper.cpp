@@ -2,7 +2,7 @@
 //
 // This is a thin adapter: it translates the AudioWorklet parameters into
 // earth::EarthParameters and calls the shared core. It contains no DSP logic.
-// The previous implementation is kept in wasm_wrapper_legacy.cpp for rollback
+// The previous implementation is kept in wasm_wrapper_legacy.cpp.disabled for rollback
 // until the Web build is validated against the core.
 //
 #include <emscripten/bind.h>

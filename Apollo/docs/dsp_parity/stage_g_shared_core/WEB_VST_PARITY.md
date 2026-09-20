@@ -18,15 +18,19 @@ milestone.
 | Overdrive | yes (`shared/Effects`) | validated P7 |
 | Latency reporting | partial (`getLatencySamples()` returns 0) | finalised with G6/G7 |
 | WASM adapter | yes (`src/wasm_wrapper.cpp` -> core) | not build-verified (no Emscripten) |
-| JUCE adapter | **no** (`PluginProcessor.cpp` unchanged, except the Stage 1 fixes) | G7 |
+| JUCE adapter | yes (`PluginProcessor.{h,cpp}` -> core) | not build-verified (no JUCE) |
 
 ## Consequence
 
-Because the octave branch is not yet in the core, `EarthDSPCore` cannot yet be
-used verbatim by the wrappers. The golden tests therefore cover the reverb path
-that *is* shared. The plan is to finish the core before touching the wrappers,
-so that the wrapper swap (G6/G7) is a mechanical change validated by the same
-tests.
+Both wrappers now call `EarthDSPCore` and contain no DSP. The remaining work is
+verification (G8): build the Web module with Emscripten and the plugin with
+JUCE, then run the Web↔VST null test. Until then the wrapper changes are
+unverified at compile time, although they use only the core API covered by the
+golden tests.
+
+Two deliberate behaviour changes are documented in `MIGRATION_LOG.md`: the
+`octave_dry_mix` polarity now follows the canonical positive semantic, and the
+dry signal is no longer delayed (the octave only excites the reverb).
 
 ## Planned octave engine (G4)
 
@@ -59,6 +63,6 @@ RMS error, null depth and correlation, aligning only proven latency.
 
 ## Answer to "do Web and VST run the same algorithm?"
 
-Not yet. They now have a validated shared core for the reverb/output path, but
-the wrappers still contain the legacy DSP until G6/G7. No sonic rule has been
-de-duplicated in the wrappers yet.
+Yes at the source level: both adapters call `EarthDSPCore` and contain no DSP
+code. Whether the built artifacts are numerically identical is unverified here
+because neither toolchain is available; that is the G8 null test.

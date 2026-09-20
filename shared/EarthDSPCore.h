@@ -126,6 +126,7 @@ private:
     Smoothed mix_;
     Smoothed damp_;
     Smoothed odSwell_;
+    Smoothed bypass_;
     Overdrive overdriveLeft_;
     Overdrive overdriveRight_;
     bool odOn_ = false;

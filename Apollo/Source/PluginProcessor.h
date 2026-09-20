@@ -1,12 +1,17 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "DSP/Dattorro/Dattorro.hpp"
-#include "DSP/DaisySP/overdrive.h"
-#include "DSP/Util/Multirate.h"
-#include "DSP/Util/OctaveGenerator.h"
-#include <juce_dsp/juce_dsp.h>
 
+#include "EarthDSPCore.h"
+
+// Thin JUCE adapter for the shared EarthDSPCore.
+//
+// It only reads the APVTS, translates the values into earth::EarthParameters
+// and calls the core. No sonic rule lives here. All APVTS ids, ranges and
+// defaults are preserved. The pre-Stage-G implementation is kept at
+// PluginProcessor_legacy.cpp/.h.disabled for rollback until the plugin build is
+// validated.
+//
 class ApolloAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -37,71 +42,11 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-public: float prev_x_in = 0.0f; float prev_x_out = 0.0f; double energy_in_above_24k = 0.0; double energy_out_above_24k = 0.0; int measure_count_in = 0; int measure_count_out = 0; bool printed1c = false; private:
+private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // Mirrors the original earth.cpp / Web reverb initialisation. Called after
-    // setSampleRate() so the VST does not silently depend on Dattorro defaults.
-    // See docs/dsp_parity/ANALYSIS.md (items 1 and 2).
-    void initialiseReverbDSP();
-
-    // DSP Components
-    Dattorro reverb;
-    daisysp::Overdrive overdriveLeft, overdriveRight;
-    std::unique_ptr<OctaveGenerator> octave;
-    
-    // JUCE filters instead of cycfi q
-    juce::dsp::IIR::Filter<float> eq1; // Highshelf
-    juce::dsp::IIR::Filter<float> eq2; // Lowshelf
-
-    // Resamplers for Octave path
-    juce::LagrangeInterpolator octaveResamplerUp;
-    juce::LagrangeInterpolator octaveResamplerDown;
-    juce::AudioBuffer<float> resampleBuffer48k;
-    
-    // Anti-aliasing filter before downsampling (8th order = 4 biquads)
-    juce::dsp::IIR::Filter<float> antiAliasFilters[4];
-    juce::dsp::DelayLine<float> dryDelayL { 4096 };
-    juce::dsp::DelayLine<float> dryDelayR { 4096 };
-
-    // Sliding window FIFOs for continuous resampling
-    juce::AudioBuffer<float> slideUp;
-    int slideUpValid = 0;
-    double phaseUp = 0.0;
-    
-    juce::AudioBuffer<float> slideDown;
-    int slideDownValid = 0;
-    double phaseDown = 0.0;
-
-    // Buffers and variables for Multirate/Octave
-    static constexpr int resample_factor = 6;
-    Decimator2 decimate;
-    Interpolator interpolate;
-    std::array<float, resample_factor> buff{};
-    std::array<float, resample_factor> buff_out{};
-    int bin_counter = 0;
-
-    // Smoothed values
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_predelay;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_moddepth;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_modspeed;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_freezeDecay;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_ODswell;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_dryMix;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_wetMix;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> current_damp;
-    
-    // Bypass smoothing
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bypassFade;
-
-    // State
-    bool odOn = false;
-    bool freeze = false;
-    float setOD = 0.4f;
-    float pmix = -1.0f;
-    float pdamp = -1.0f;
-    float peq1 = -999.0f;
-    float peq2 = -999.0f;
+    earth::EarthDSPCore core_;
+    earth::EarthParameters params_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApolloAudioProcessor)
 };

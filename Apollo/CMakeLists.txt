@@ -26,16 +26,23 @@ juce_add_plugin(Apollo
 # Enable C++20 for std::span in Multirate.h
 target_compile_features(Apollo PUBLIC cxx_std_20)
 
+# Shared EarthDSPCore sources (outside the Apollo tree).
+set(EARTH_SHARED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../shared")
+set(EARTH_CORE_SOURCES
+    "${EARTH_SHARED_DIR}/EarthDSPCore.cpp"
+    "${EARTH_SHARED_DIR}/Dattorro/Dattorro.cpp"
+    "${EARTH_SHARED_DIR}/Dattorro/dsp/delays/InterpDelay.cpp"
+    "${EARTH_SHARED_DIR}/Dattorro/dsp/filters/OnePoleFilters.cpp"
+    "${EARTH_SHARED_DIR}/Effects/Overdrive.cpp"
+)
+
 target_sources(Apollo
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/ApolloLookAndFeel.cpp
         Source/ApolloTheme.cpp
-        Source/DSP/Dattorro/Dattorro.cpp
-        Source/DSP/Dattorro/dsp/delays/InterpDelay.cpp
-        Source/DSP/Dattorro/dsp/filters/OnePoleFilters.cpp
-        Source/DSP/DaisySP/overdrive.cpp
+        ${EARTH_CORE_SOURCES}
 )
 
 target_compile_definitions(Apollo
@@ -61,11 +68,12 @@ target_include_directories(Apollo
     PRIVATE
         Source
         Source/DSP
+        "${EARTH_SHARED_DIR}"
 )
 
 juce_add_console_app(ApolloTest)
-target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp Source/DSP/Dattorro/Dattorro.cpp Source/DSP/Dattorro/dsp/delays/InterpDelay.cpp Source/DSP/Dattorro/dsp/filters/OnePoleFilters.cpp Source/DSP/DaisySP/overdrive.cpp)
-target_include_directories(ApolloTest PRIVATE Source Source/DSP)
+target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
+target_include_directories(ApolloTest PRIVATE Source Source/DSP "${EARTH_SHARED_DIR}")
 target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
 

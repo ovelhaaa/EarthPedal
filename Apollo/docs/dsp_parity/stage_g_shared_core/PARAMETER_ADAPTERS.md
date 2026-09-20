@@ -50,16 +50,18 @@ All ids preserved. Values are normalised 0..1 unless noted.
 
 ### `octave_dry_mix` polarity (legacy -> canonical)
 
-The legacy VST code adds the inner dry when `!octave_dry_mix || effect_mode == 2`
-(`PluginProcessor.cpp`), i.e. a double negation with a mode exception. The
-canonical semantic is positive: `includeDryInOctavePath == true` adds
-`0.5 * dry` to the octave branch for every active octave mode.
+The legacy VST code added the inner dry when `!octave_dry_mix || effect_mode == 2`
+— a double negation with a mode exception. The canonical semantic is positive:
+`includeDryInOctavePath == true` adds `0.5 * dry` to the octave branch for every
+active octave mode, which is what the Web/earth reference does and what the
+Stage F octave-routing matrix measured.
 
-The adapter must reproduce the legacy audible result without changing the id or
-the stored polarity. The exact translation is decided by the Up/Down/Both ×
-dry-on/off render matrix and is **pending**; until it is frozen the adapter
-keeps the legacy expression behind a named helper. Do not change the id or the
-saved values.
+**Decision (G7):** the adapter maps `includeDryInOctavePath = octave_dry_mix`
+directly. The id and the stored boolean are preserved, but the *effective*
+meaning is inverted relative to the legacy double negation, so the default
+(`octave_dry_mix = true`) now includes the inner dry and matches the Web
+reference. This is a deliberate, documented compatibility change; it is the
+single intended polarity change and is listed in `MIGRATION_LOG.md`.
 
 ## Web / AudioWorklet -> EarthParameters
 

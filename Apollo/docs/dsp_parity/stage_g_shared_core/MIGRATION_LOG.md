@@ -76,7 +76,7 @@ production code runnable.
 
 * `src/wasm_wrapper.cpp` now only translates AudioWorklet parameters into
   `EarthParameters` and calls `EarthDSPCore`. All DSP logic was removed. The
-  previous implementation is preserved as `src/wasm_wrapper_legacy.cpp` for
+  previous implementation is preserved as `src/wasm_wrapper_legacy.cpp.disabled` for
   rollback.
 * `src/makefile_wasm` builds the shared sources (`shared/EarthDSPCore.cpp`,
   `shared/Dattorro/**`, `shared/Effects/Overdrive.cpp`) and drops the root
@@ -89,10 +89,36 @@ production code runnable.
 * Requires the JUCE adapter (G7) or a matching `octave_dry_mix` decision to be
   fully equivalent to the VST default (`includeDryInOctavePath = true`).
 
+## G7 — JUCE adapter
+
+* `Apollo/Source/PluginProcessor.{h,cpp}` is now a thin adapter: it reads the
+  APVTS, builds `EarthParameters` and calls `EarthDSPCore`. All DSP, resampling,
+  dry-delay and smoothing code was removed. The previous implementation is kept
+  at `PluginProcessor_legacy.{h,cpp}.disabled` for rollback.
+* APVTS ids, ranges, choices and defaults are unchanged. `effect_mode`
+  0/1/2/3 maps to Off/Up/Down/Both; `footswitch_mode` 0/1/2 maps to
+  Freeze/Overdrive/Octave; in Octave momentary mode the octave engages only
+  while `momentary_effect` is held (legacy behaviour).
+* Deliberate decisions:
+  * `octave_dry_mix` now maps **positively** to
+    `includeDryInOctavePath` (ON = include `0.5*dry`). The id and stored value
+    are preserved, but the effective meaning is inverted relative to the legacy
+    double-negation, so the default now matches the Web reference. Documented in
+    `PARAMETER_ADAPTERS.md`.
+  * The dry signal is **no longer delayed**. The octave branch only excites the
+    reverb (as in earth.cpp/Web), so no dry alignment is needed. The core
+    reports zero latency; `setLatencySamples(0)`.
+  * Bypass is now a 10 ms smoothed crossfade inside the core.
+  * `getTailLengthSeconds()` returns 8 s (was 0) so hosts do not truncate the
+    tail.
+* The plugin build is not verified here (JUCE/juceaide unavailable). The core
+  it calls is the same one covered by the golden tests.
+* `Apollo/Source/DSP/**` is no longer compiled by `CMakeLists.txt`; it stays in
+  the tree until G8.
+
 ## Not yet done
 
-G7 JUCE adapter, G8 removal of the duplicated legacy DSP, and the Web↔VST null
-test. No file under `Apollo/Source/` was modified in G1–G6.
+G8 removal of the duplicated legacy DSP, and the Web↔VST null test.
 
 ## Regeneration
 
