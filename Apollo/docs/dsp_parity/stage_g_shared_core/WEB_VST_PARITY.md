@@ -12,11 +12,11 @@ milestone.
 | Dattorro reverb | yes (`shared/Dattorro`) | bit-exact with production at 48 kHz |
 | Timebase policy | yes (`EarthTimebase`) | LegacySrInvariant default |
 | Parameters / enums | yes | single source of truth |
-| Reverb initialisation, mix, damp, pre-delay, freeze | yes (`EarthDSPCore`) | validated P0/P1/P6/P8/P9 |
+| Reverb initialisation, mix, damp, pre-delay, freeze | yes (`EarthDSPCore`) | validated P0/P1/P7 |
 | Smoothing windows | yes | 5 ms, in the core |
-| Octave engine (multirate, 48 kHz canonical, shelves) | **no** | G4 |
-| Overdrive | **no** | G5 |
-| Latency reporting | partial (`getLatencySamples()` returns 0) | finalised with G4 |
+| Octave engine (multirate, 48 kHz canonical, shared shelves) | yes | validated P3/P4/P5 |
+| Overdrive | yes (`shared/Effects`) | validated P7 |
+| Latency reporting | partial (`getLatencySamples()` returns 0) | finalised with G6/G7 |
 | WASM adapter | **no** (`src/wasm_wrapper.cpp` unchanged) | G6 |
 | JUCE adapter | **no** (`PluginProcessor.cpp` unchanged, except the Stage 1 fixes) | G7 |
 

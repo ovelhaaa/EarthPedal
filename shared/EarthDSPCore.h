@@ -17,8 +17,15 @@
 #include "EarthRateContext.h"
 #include "EarthTimebase.h"
 #include "Dattorro/Dattorro.hpp"
+#include "Multirate/Multirate.h"
+#include "Octave/OctaveGenerator.h"
+#include "Filters/ShelfFilter.h"
+#include "Resampling/FractionalLinearResampler.h"
+#include "Effects/Overdrive.h"
 
+#include <array>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 namespace earth {
@@ -91,6 +98,12 @@ private:
     void applyRateContext();
     void applyStaticParameters(const EarthParameters& p);
     void applyDamp(float damp);
+    void updateShelves();
+
+    // Octave branch in the canonical 48 kHz domain. `processOctave48Sample`
+    // implements the exact earth.cpp/Web routing for one 48 kHz sample.
+    float processOctave48Sample(float input);
+    void processOctave48Block(const float* in, float* out, int count);
 
     TimebaseModel timebaseModel_ = TimebaseModel::LegacySrInvariant;
     EarthRateContext rateContext_;
@@ -112,6 +125,31 @@ private:
     Smoothed modSpeed_;
     Smoothed mix_;
     Smoothed damp_;
+    Smoothed odSwell_;
+    Overdrive overdriveLeft_;
+    Overdrive overdriveRight_;
+    bool odOn_ = false;
+
+    // Octave branch (canonical 48 kHz domain).
+    static constexpr double kCanonicalRate = 48000.0;
+    std::unique_ptr<OctaveGenerator> octave_;
+    Decimator2 decimate_;
+    Interpolator interpolate_;
+    Biquad highShelf_;
+    Biquad lowShelf_;
+    std::array<float, resample_factor> buff_{};
+    std::array<float, resample_factor> buffOut_{};
+    int binCounter_ = 0;
+    float lastEq1_ = -9999.0f;
+    float lastEq2_ = -9999.0f;
+
+    bool native48_ = true;
+    FractionalLinearResampler upResampler_;
+    FractionalLinearResampler downResampler_;
+    std::vector<float> octaveIn48_;
+    std::vector<float> octaveOut48_;
+    std::vector<float> downFifo_;
+    size_t downRead_ = 0;
 };
 
 } // namespace earth

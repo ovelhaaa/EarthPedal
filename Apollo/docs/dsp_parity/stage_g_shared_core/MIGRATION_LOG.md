@@ -51,8 +51,35 @@ production code runnable.
 * `shared/CMakeLists.txt` + `shared/tests/CMakeLists.txt`.
 * `.github/workflows/dsp-parity.yml` runs the gate on Linux.
 
+## G4 — shared octave engine
+
+* Added `shared/Multirate/Multirate.h`, `shared/Octave/{OctaveGenerator,
+  BandShifter,FastSqrt}.h` (copies of the Apollo DSP), `shared/Filters/
+  ShelfFilter.h` (new shared RBJ high/low shelf) and `shared/Resampling/
+  FractionalLinearResampler.h` (provisional host<->48k resampler).
+* `EarthDSPCore` now runs the octave branch in the canonical 48 kHz domain.
+  At exactly 48 kHz the resampler is bypassed and the path is bit-identical to
+  the native Web/earth reference.
+* The resamplers are primed at `reset()` so the octave path is block-size
+  invariant at non-48k rates.
+* Octave golden P3/P4/P5: bit-exact at 48 kHz.
+
+## G5 — shared overdrive + freeze
+
+* Added `shared/Effects/Overdrive.{h,cpp}` (DaisySP Overdrive port, same math).
+* `EarthDSPCore` applies the overdrive to the wet signal with the historical
+  compensation curve and the base/active drive 0.4/0.6, and implements the
+  freeze `decay -> 1.0` with smoothing.
+* Overdrive golden P7: bit-exact at 48 kHz. Freeze functional test passes.
+
 ## Not yet done
 
-G4 octave engine, G5 overdrive/full freeze, G6 Web adapter, G7 JUCE adapter,
-G8 removal of the duplicated legacy DSP, and the Web↔VST null test.
-No production file under `Apollo/Source/` or `src/` was modified in G1–G3.
+G6 Web adapter, G7 JUCE adapter, G8 removal of the duplicated legacy DSP, and
+the Web↔VST null test. No production file under `Apollo/Source/` or `src/` was
+modified in G1–G5.
+
+## Regeneration
+
+The golden `.f32` files in `shared/tests/golden/` were regenerated in G4/G5 to
+add P3/P4/P5/P7. `make_golden` uses the production Apollo Dattorro / Multirate /
+OctaveGenerator / Overdrive plus the shared shelf definition.

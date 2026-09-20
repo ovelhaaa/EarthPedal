@@ -81,8 +81,21 @@ static void dumpF32(const fs::path& p, const std::vector<float>& x) {
 static void testGolden(const fs::path& goldenDir, const fs::path& dumpDir) {
     std::printf("[Golden 48 kHz]\n");
 
-    struct Case { const char* name; float mix; };
-    const Case cases[] = {{"p0_48k.f32", 1.0f}, {"p1_48k.f32", 0.5f}};
+    struct Case {
+        const char* name;
+        float mix;
+        OctaveMode mode;
+        earth::PerformanceMode perf = earth::PerformanceMode::Freeze;
+        bool active = false;
+    };
+    const Case cases[] = {
+        {"p0_48k.f32", 1.0f, OctaveMode::Off},
+        {"p1_48k.f32", 0.5f, OctaveMode::Off},
+        {"p3_up_48k.f32", 0.5f, OctaveMode::Up},
+        {"p4_down_48k.f32", 0.5f, OctaveMode::Down},
+        {"p5_both_48k.f32", 0.5f, OctaveMode::Both},
+        {"p7_overdrive_48k.f32", 0.5f, OctaveMode::Off, earth::PerformanceMode::Overdrive, true},
+    };
 
     for (const auto& c : cases) {
         const auto golden = loadF32(goldenDir / c.name);
@@ -95,6 +108,9 @@ static void testGolden(const fs::path& goldenDir, const fs::path& dumpDir) {
         core.prepare(48000.0, 512);
         EarthParameters p = EarthParameters::defaults();
         p.mix = c.mix;
+        p.octaveMode = c.mode;
+        p.performanceMode = c.perf;
+        p.performanceActive = c.active;
         core.setParameters(p);
         core.snapParameters();
 
@@ -148,6 +164,108 @@ static void testSampleRateInvariance() {
     }
 }
 
+static void testOctaveSampleRates() {
+    std::printf("[Octave across sample rates]\n");
+
+    for (double sr : {44100.0, 96000.0}) {
+        EarthParameters p = EarthParameters::defaults();
+        p.octaveMode = OctaveMode::Up;
+        p.mix = 0.5f;
+
+        auto render = [&](int block) {
+            EarthDSPCore core;
+            core.prepare(sr, block);
+            core.setParameters(p);
+            core.snapParameters();
+            const int n = static_cast<int>(sr * 1.0);
+            std::vector<float> in(n, 0.0f), out(n, 0.0f), outR(n, 0.0f);
+            for (int i = 0; i < n; ++i)
+                in[i] = 0.3f * std::sin(2.0 * M_PI * 220.0 * i / sr) * std::exp(-i / (sr * 0.5));
+            for (int s = 0; s < n; s += block) {
+                const int m = std::min(block, n - s);
+                core.process(in.data() + s, in.data() + s, out.data() + s, outR.data() + s, m);
+            }
+            return out;
+        };
+
+        const auto a = render(128);
+        double rms = 0.0;
+        bool finite = true;
+        for (float v : a) { rms += double(v) * v; if (!std::isfinite(v)) finite = false; }
+        rms = std::sqrt(rms / a.size());
+
+        // Block invariance must also hold with the resampled octave path.
+        const auto b = render(512);
+        double d = 0.0;
+        for (size_t i = 0; i < a.size(); ++i) d = std::max(d, std::fabs(double(a[i]) - b[i]));
+
+        char buf[200];
+        std::snprintf(buf, sizeof(buf), "sr=%.0f octave Up: finite=%d rms=%.5f blockDiff=%.3g",
+                      sr, finite ? 1 : 0, rms, d);
+        check(finite && rms > 1e-5 && d == 0.0, buf);
+    }
+}
+
+static void testFreeze() {
+    std::printf("[Freeze]\n");
+
+    auto tailEnergy = [](const std::vector<float>& x, double sr, double t0, double t1) {
+        double e = 0.0;
+        const int a = static_cast<int>(t0 * sr), b = std::min<int>(static_cast<int>(t1 * sr), static_cast<int>(x.size()));
+        for (int i = a; i < b; ++i) e += double(x[i]) * x[i];
+        return e;
+    };
+
+    auto render = [&](bool frozen) {
+        EarthDSPCore core;
+        core.prepare(48000.0, 512);
+        EarthParameters p = EarthParameters::defaults();
+        p.mix = 1.0f;
+        p.performanceMode = earth::PerformanceMode::Freeze;
+        p.performanceActive = frozen;
+        core.setParameters(p);
+        core.snapParameters();
+        std::vector<float> in(48000 * 2, 0.0f);
+        in[0] = 1.0f;
+        std::vector<float> out(in.size(), 0.0f), outR(in.size(), 0.0f);
+        for (int s = 0; s < static_cast<int>(in.size()); s += 512) {
+            const int n = std::min(512, static_cast<int>(in.size()) - s);
+            core.process(in.data() + s, in.data() + s, out.data() + s, outR.data() + s, n);
+        }
+        return out;
+    };
+
+    const auto normal = render(false);
+    const auto frozen = render(true);
+    bool finite = true;
+    for (float v : frozen) if (!std::isfinite(v)) finite = false;
+
+    const double en = tailEnergy(normal, 48000.0, 1.5, 2.0);
+    const double ef = tailEnergy(frozen, 48000.0, 1.5, 2.0);
+    check(finite && ef > en * 2.0, "freeze sustains the tail and stays finite");
+
+    // Engage / release transition must not produce non-finite output.
+    EarthDSPCore core;
+    core.prepare(48000.0, 512);
+    EarthParameters p = EarthParameters::defaults();
+    p.mix = 1.0f;
+    p.performanceMode = earth::PerformanceMode::Freeze;
+    core.setParameters(p);
+    core.snapParameters();
+    std::vector<float> in(48000, 0.0f);
+    in[0] = 1.0f;
+    std::vector<float> out(in.size(), 0.0f), outR(in.size(), 0.0f);
+    bool finite2 = true;
+    for (int s = 0; s < 48000; s += 512) {
+        const int n = std::min(512, 48000 - s);
+        p.performanceActive = (s > 10000 && s < 30000);
+        core.setParameters(p);
+        core.process(in.data() + s, in.data() + s, out.data() + s, outR.data() + s, n);
+    }
+    for (float v : out) if (!std::isfinite(v)) finite2 = false;
+    check(finite2, "freeze engage/release transition is finite");
+}
+
 static void testBlockInvariance() {
     std::printf("[Block-size invariance]\n");
 
@@ -180,6 +298,8 @@ int main(int argc, char** argv) {
 
     testGolden(goldenDir, dumpDir);
     testSampleRateInvariance();
+    testOctaveSampleRates();
+    testFreeze();
     testBlockInvariance();
 
     std::printf("\n%s (%d failure(s))\n", g_failures == 0 ? "ALL PASS" : "FAILURES", g_failures);

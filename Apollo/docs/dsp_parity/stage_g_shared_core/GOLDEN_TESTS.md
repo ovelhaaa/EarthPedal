@@ -20,6 +20,10 @@ keeps the golden independent of the thing under test.
 | --- | --- | --- |
 | `p0_48k.f32` | reverb only, Large, decay 0.877465, input diffusion on | 100 % wet |
 | `p1_48k.f32` | canonical default | 50 % |
+| `p3_up_48k.f32` | octave Up | 50 % |
+| `p4_down_48k.f32` | octave Down | 50 % |
+| `p5_both_48k.f32` | octave Both | 50 % |
+| `p7_overdrive_48k.f32` | Overdrive active (drive 0.6) | 50 % |
 
 Regenerate (only if the golden must intentionally change):
 
@@ -36,6 +40,10 @@ cmake --build shared/build --target make_golden
 | --- | --- | --- | --- |
 | P0 | 0 | −546 dB | bit-exact (max \|diff\| < 1e-6) |
 | P1 | 0 | −548 dB | bit-exact |
+| P3 (Up) | 0 | −546 dB | bit-exact |
+| P4 (Down) | 0 | −546 dB | bit-exact |
+| P5 (Both) | 0 | −546 dB | bit-exact |
+| P7 (Overdrive) | 0 | −552 dB | bit-exact |
 
 ### 2. Sample-rate invariance (wet only)
 
@@ -49,13 +57,26 @@ cmake --build shared/build --target make_golden
 Assertions: `timingReferenceRate == host * 2/3`; `leftDelay1` within 0.5 ms of
 the golden; RT30 within 0.45 s of 5.28 s; all samples finite.
 
-### 3. Block-size invariance
+### 3. Octave across sample rates
+
+With `octaveMode = Up`, rendering a 220 Hz burst at 44.1 kHz and 96 kHz must be
+finite, produce output (`rms > 1e-5`) and be block-size invariant
+(128 vs 512 bit-identical). The resampled path is primed at `reset()` so the
+first block never underruns.
+
+### 4. Freeze
+
+With `PerformanceMode::Freeze` and `performanceActive = true`, the tail energy
+in 1.5–2.0 s must be more than double the un-frozen tail (decay ramps to 1.0).
+Engaging and releasing freeze mid-render must stay finite.
+
+### 5. Block-size invariance
 
 Rendering the same input with block sizes 64, 128 and 512 must be
 **bit-identical** (max diff == 0). Because smoothing is per-sample, block size
 must not affect the output.
 
-### 4. Finite output
+### 6. Finite output
 
 NaN / Inf in any sample fails the test.
 

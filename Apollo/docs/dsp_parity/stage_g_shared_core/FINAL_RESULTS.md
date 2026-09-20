@@ -11,11 +11,21 @@ G0–G3 + the CI gate. The remaining steps (G4–G8) are tracked in `README.md`.
 [Golden 48 kHz]
     p0_48k.f32: max|diff|=0  null=-546.4 dB   PASS
     p1_48k.f32: max|diff|=0  null=-547.8 dB   PASS
+    p3_up_48k.f32: max|diff|=0  null=-546.0 dB   PASS
+    p4_down_48k.f32: max|diff|=0  null=-546.1 dB PASS
+    p5_both_48k.f32: max|diff|=0  null=-546.1 dB PASS
+    p7_overdrive_48k.f32: max|diff|=0 null=-552.2 dB PASS
 [Sample-rate invariance]
     sr=44100 timingRef=29400 leftDelay1=399.00 ms RT30=5.38 s  PASS
     sr=48000 timingRef=32000 leftDelay1=399.00 ms RT30=5.28 s  PASS
     sr=96000 timingRef=64000 leftDelay1=399.00 ms RT30=5.21 s  PASS
     sr=192000 timingRef=128000 leftDelay1=399.00 ms RT30=5.31 s PASS
+[Octave across sample rates]
+    sr=44100 octave Up finite, rms=0.086, blockDiff=0  PASS
+    sr=96000 octave Up finite, rms=0.093, blockDiff=0  PASS
+[Freeze]
+    freeze sustains the tail and stays finite  PASS
+    freeze engage/release transition is finite  PASS
 [Block-size invariance]
     64 vs 128 bit-identical  PASS
     64 vs 512 bit-identical  PASS
@@ -29,22 +39,22 @@ and keeps delay timing and RT stable across every supported rate.
 
 | # | Criterion | Status |
 | --- | --- | --- |
-| 1 | Single shared `EarthDSPCore` exists | done (reverb path); octave/overdrive pending |
+| 1 | Single shared `EarthDSPCore` exists | done (reverb + octave + overdrive + freeze) |
 | 2 | Web and JUCE use the core | not yet (G6/G7) |
 | 3 | Default is `LegacySrInvariant` | done |
-| 4 | Golden @48k preserved | done, bit-exact |
+| 4 | Golden @48k preserved | done, bit-exact (P0/P1/P3/P4/P5/P7) |
 | 5 | Tank diffusion 0.7 centralised | done (`EarthDSPCore::prepare`) |
 | 6 | Timebase roles explicit | done |
 | 7 | LFO sample-rate invariant | done (rate context; measured in Stage F) |
 | 8 | Tank filters legacy-invariant | done for the reverb tank cut filters |
 | 9 | Pre-delay consistent | done (seconds, 0..1) |
-| 10 | Octave canonical @48k | not yet (G4) |
+| 10 | Octave canonical @48k | done (G4); shared provisional resampler for other rates |
 | 11 | Shared octave enum | done (`EarthEnums.h`); adapters pending |
-| 12 | Single dry-routing semantic | defined; adapter translation pending |
+| 12 | Single dry-routing semantic | implemented (`includeDryInOctavePath`); adapter translation pending |
 | 13 | APVTS compatibility | untouched; adapter pending (G7) |
-| 14 | P0–P9 exist | P0/P1 golden; full set with G4/G5 |
-| 15 | Block-size invariance tested | done |
-| 16 | 44.1/48/96/192 pass | done for the reverb path |
+| 14 | P0–P9 exist | P0/P1/P3/P4/P5/P7 golden; P6 functional; P2/P8–P12 pending adapters |
+| 15 | Block-size invariance tested | done (reverb and octave) |
+| 16 | 44.1/48/96/192 pass | done (reverb + octave sanity) |
 | 17 | Web↔VST null within threshold | not yet (needs adapters + Emscripten) |
 | 18 | CI prevents regression | done (`dsp-parity.yml`) |
 | 19 | Legacy DSP removed only after validation | not removed (G8) |

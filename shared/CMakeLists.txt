@@ -15,6 +15,7 @@ add_library(earth_core STATIC
     Dattorro/Dattorro.cpp
     Dattorro/dsp/delays/InterpDelay.cpp
     Dattorro/dsp/filters/OnePoleFilters.cpp
+    Effects/Overdrive.cpp
 )
 target_include_directories(earth_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
