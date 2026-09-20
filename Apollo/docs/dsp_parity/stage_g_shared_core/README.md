@@ -20,7 +20,7 @@ Apollo JUCE plugin, so no sonic rule lives in the wrappers.
 | G4 | Shared octave engine (multirate, shared shelves, 48k canonical domain) | done |
 | G5 | Shared overdrive + freeze routing | done |
 | G9 (partial) | CI gate building/running the core tests on Linux | done |
-| G6 | Web/WASM adapter on the core | planned |
+| G6 | Web/WASM adapter on the core | done (not build-verified: no Emscripten) |
 | G7 | JUCE adapter on the core | planned |
 | G8 | Remove duplicated legacy DSP after validation | planned |
 

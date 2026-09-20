@@ -1,15 +1,9 @@
 #!/bin/bash
-# Clone dependencies if they don't exist
-mkdir -p deps
-if [ ! -d "deps/q" ]; then
-    git clone https://github.com/cycfi/q.git deps/q
-fi
-if [ ! -d "deps/gcem" ]; then
-    git clone https://github.com/kthohr/gcem.git deps/gcem
-fi
-if [ ! -d "deps/infra" ]; then
-    git clone https://github.com/cycfi/infra.git deps/infra
-fi
+# Builds the Web/WASM module from the shared EarthDSPCore.
+#
+# The old implementation lived in the root Dattorro/ and Util/ trees. It is now
+# built from shared/ so Web and JUCE run the same DSP core.
+set -e
 
 emcc -O3 \
     --bind \
@@ -20,13 +14,11 @@ emcc -O3 \
     -s EXPORT_NAME="'EarthModule'" \
     -s EXPORTED_FUNCTIONS="['_malloc', '_free']" \
     -std=c++20 \
-    -I./deps/q/q_lib/include \
-    -I./deps/gcem/include \
-    -I./deps/infra/include \
-    -I./Dattorro \
-    -I./Util \
+    -I./shared \
     src/wasm_wrapper.cpp \
-    Dattorro/dsp/filters/OnePoleFilters.cpp \
-    Dattorro/dsp/delays/InterpDelay.cpp \
-    Dattorro/Dattorro.cpp \
+    shared/EarthDSPCore.cpp \
+    shared/Dattorro/Dattorro.cpp \
+    shared/Dattorro/dsp/delays/InterpDelay.cpp \
+    shared/Dattorro/dsp/filters/OnePoleFilters.cpp \
+    shared/Effects/Overdrive.cpp \
     -o web/earth-module.js

@@ -1,254 +1,77 @@
+// Web/WASM adapter for the shared EarthDSPCore.
+//
+// This is a thin adapter: it translates the AudioWorklet parameters into
+// earth::EarthParameters and calls the shared core. It contains no DSP logic.
+// The previous implementation is kept in wasm_wrapper_legacy.cpp for rollback
+// until the Web build is validated against the core.
+//
 #include <emscripten/bind.h>
-#include <emscripten/val.h>
-#include <vector>
-#include <span>
-#include <cmath>
 
-#include "../Dattorro/Dattorro.hpp"
-#include "../Util/Multirate.h"
-#include "../Util/OctaveGenerator.h"
-#include <q/fx/biquad.hpp>
+#include <cstdint>
 
-namespace q = cycfi::q;
-using namespace q::literals;
+#include "EarthDSPCore.h"
+
+using earth::EarthDSPCore;
+using earth::EarthParameters;
+using earth::OctaveMode;
+using earth::ReverbSize;
+
+namespace {
+
+OctaveMode mapOctaveMode(int mode) {
+    switch (mode) {
+        case 1: return OctaveMode::Up;
+        case 2: return OctaveMode::Down;
+        case 3: return OctaveMode::Both;
+        default: return OctaveMode::Off;
+    }
+}
+
+ReverbSize mapReverbSize(int size) {
+    switch (size) {
+        case 0: return ReverbSize::Small;
+        case 1: return ReverbSize::Medium;
+        default: return ReverbSize::Large;
+    }
+}
+
+} // namespace
 
 class EarthAudioProcessor {
 public:
-    EarthAudioProcessor(float sampleRate) :
-        sampleRate_(sampleRate),
-        reverb_(sampleRate, 16, 4.0),
-        octave_(sampleRate / resample_factor),
-        eq1_(-11, 140_Hz, sampleRate),
-        eq2_(5, 160_Hz, sampleRate)
-    {
-        reverb_.setSampleRate(sampleRate);
-        reverb_.setTimeScale(4.0);
-        reverb_.setPreDelay(0.0);
-
-        reverb_.setInputFilterLowCutoffPitch(10. * 0.0);
-        reverb_.setInputFilterHighCutoffPitch(10. - (10. * 0.0));
-        reverb_.enableInputDiffusion(true);
-        reverb_.setDecay(0.877465);
-        reverb_.setTankDiffusion(1.0 * 0.7);
-        reverb_.setTankFilterLowCutFrequency(10. * 0.0);
-        reverb_.setTankFilterHighCutFrequency(10. - (10. * 0.0));
-        reverb_.setTankModSpeed(1.0);
-        reverb_.setTankModDepth(0.5);
-        reverb_.setTankModShape(0.5);
-        reverb_.clear();
-
-        for (int j = 0; j < 6; ++j) {
-            buff_[j] = 0.0f;
-            buff_out_[j] = 0.0f;
-        }
-
-        // Initialize parameters to default values
-        setPreDelay(0.0f);
-        setMix(0.5f);
-        setDecay(0.5f);
-        setModDepth(0.5f);
-        setModSpeed(0.5f);
-        setFilter(0.5f);
-        setReverbSize(1);
-        setOctaveMode(0);
-        setDisableInputDiffusion(false);
+    explicit EarthAudioProcessor(float sampleRate) {
+        core_.prepare(sampleRate, 512);
+        params_ = EarthParameters::defaults();
+        core_.setParameters(params_);
+        core_.snapParameters();
     }
 
-    void setPreDelay(float value) { predelay_ = value; updateSmoothedParams(); }
-    void setMix(float value) { mix_ = value; updateSmoothedParams(); }
-    void setDecay(float value) { decay_ = value; updateSmoothedParams(); }
-    void setModDepth(float value) { moddepth_ = value; updateSmoothedParams(); }
-    void setModSpeed(float value) { modspeed_ = value; updateSmoothedParams(); }
-    void setFilter(float value) { filter_ = value; updateSmoothedParams(); }
+    void setPreDelay(float value) { params_.preDelaySeconds = value; apply(); }
+    void setMix(float value) { params_.mix = value; apply(); }
+    void setDecay(float value) { params_.decay = value; apply(); }
+    void setModDepth(float value) { params_.modulationDepth = value; apply(); }
+    void setModSpeed(float value) { params_.modulationSpeed = value; apply(); }
+    void setFilter(float value) { params_.damp = value; apply(); }
+    void setEq1Gain(float gain) { params_.octaveHighShelfDb = gain; apply(); }
+    void setEq2Gain(float gain) { params_.octaveLowShelfDb = gain; apply(); }
+    void setReverbSize(int size) { params_.reverbSize = mapReverbSize(size); apply(); }
+    void setOctaveMode(int mode) { params_.octaveMode = mapOctaveMode(mode); apply(); }
+    void setDisableInputDiffusion(bool disabled) { params_.inputDiffusion = !disabled; apply(); }
 
-    void setEq1Gain(float gain) {
-        eq1_gain_ = gain;
-        eq1_.config(eq1_gain_, 140_Hz, sampleRate_);
-    }
-
-    void setEq2Gain(float gain) {
-        eq2_gain_ = gain;
-        eq2_.config(eq2_gain_, 160_Hz, sampleRate_);
-    }
-
-    void setReverbSize(int size) {
-        float setTimeScale;
-        if (size == 0) { // Small
-            setTimeScale = 1.0;
-        } else if (size == 2) { // Big
-            setTimeScale = 4.0;
-        } else { // Medium
-            setTimeScale = 2.0;
-        }
-        reverb_.setTimeScale(setTimeScale);
-    }
-
-    void setOctaveMode(int mode) {
-        effect_mode_ = mode;
-    }
-
-    void setDisableInputDiffusion(bool disabled) {
-        disable_input_diffusion_ = disabled;
-    }
-
-    void process(uintptr_t inL_ptr, uintptr_t inR_ptr, uintptr_t outL_ptr, uintptr_t outR_ptr, int size) {
-        float* inL = reinterpret_cast<float*>(inL_ptr);
-        float* inR = reinterpret_cast<float*>(inR_ptr);
+    void process(uintptr_t inL_ptr, uintptr_t inR_ptr,
+                 uintptr_t outL_ptr, uintptr_t outR_ptr, int size) {
+        const float* inL = reinterpret_cast<const float*>(inL_ptr);
+        const float* inR = reinterpret_cast<const float*>(inR_ptr);
         float* outL = reinterpret_cast<float*>(outL_ptr);
         float* outR = reinterpret_cast<float*>(outR_ptr);
-
-        reverb_.enableInputDiffusion(!disable_input_diffusion_);
-
-        for (int i = 0; i < size; ++i) {
-            float inputL = inL[i];
-            float inputR = inR[i];
-            float monoInput = 0.5f * (inputL + inputR);
-
-            // Re-implement process logic from earth.cpp
-            buff_[bin_counter_] = monoInput;
-
-            if (bin_counter_ > 4) {
-                std::span<const float, resample_factor> in_chunk(&(buff_[0]), resample_factor);
-                const auto sample = decimate_(in_chunk);
-
-                float octave_mix = 0.0f;
-                octave_.update(sample);
-
-                if (effect_mode_ != 0)
-                    octave_mix += octave_.up1() * 2.0f;
-                if (effect_mode_ == 2) {
-                    octave_mix += octave_.down1() * 2.0f;
-                    octave_mix += octave_.down2() * 2.0f;
-                }
-
-                if (!std::isfinite(octave_mix)) {
-                    octave_mix = 0.0f;
-                } else {
-                    octave_mix = std::fmax(-8.0f, std::fmin(8.0f, octave_mix));
-                }
-
-                auto out_chunk = interpolate_(octave_mix);
-                for (size_t j = 0; j < out_chunk.size(); ++j) {
-                    float mix = eq2_(eq1_(out_chunk[j]));
-                    float dryLevel = 0.5f;
-
-                    if (effect_mode_ == 2 || octave_only_mode_ == false) {
-                        mix += dryLevel * buff_[j];
-                    }
-
-                    if (effect_mode_ != 0)
-                        buff_out_[j] = mix;
-                    else
-                        buff_out_[j] = 0.0f;
-
-                    if (!std::isfinite(buff_out_[j])) {
-                        buff_out_[j] = 0.0f;
-                    }
-                }
-            }
-
-            bin_counter_ += 1;
-            if (bin_counter_ > 5)
-                bin_counter_ = 0;
-
-            float reverb_in = monoInput;
-            if (effect_mode_ != 0) {
-                reverb_in = buff_out_[bin_counter_];
-            }
-
-            if (!std::isfinite(reverb_in)) {
-                reverb_in = 0.0f;
-            }
-
-            reverb_.process(reverb_in, reverb_in);
-
-            float effectLeftOut = reverb_.getLeftOutput();
-            float effectRightOut = reverb_.getRightOutput();
-
-            float leftOutput = inputL * dryMix_ + effectLeftOut * wetMix_ * 0.4f;
-            float rightOutput = inputR * dryMix_ + effectRightOut * wetMix_ * 0.4f;
-
-            outL[i] = leftOutput;
-            outR[i] = rightOutput;
-        }
+        core_.process(inL, inR, outL, outR, size);
     }
 
 private:
+    void apply() { core_.setParameters(params_); }
 
-    // Single pole filter logic from fonepole macro in earth.cpp
-    // This isn't necessary for frame-based updates since we aren't smoothing continuously per sample in process() here,
-    // but we can apply it right away since it sets parameters.
-    // Wait, the real earth.cpp does smoothing *inside* the process loop.
-    // I can just set them instantly when called for now or set up continuous smoothing.
-    // Let's set them directly.
-
-    void updateSmoothedParams() {
-        // PreDelay: Dattorro::setPreDelay() takes *seconds* and internally
-        // multiplies by the sample rate. The normalised UI value 0..1 therefore
-        // maps directly to 0..1 s (0 / 500 / 1000 ms). The previous
-        // `norm * 1000 * 2` passed up to 700 s and saturated the delay line for
-        // any non-zero value. See docs/dsp_parity/ANALYSIS.md item 3.
-        reverb_.setPreDelay(predelay_);
-
-        // Mix
-        // A cheap mostly energy constant crossfade
-        float x2 = 1.0f - mix_;
-        float A = mix_ * x2;
-        float B = A * (1.0f + 1.4186f * A);
-        float C = B + mix_;
-        float D = B + x2;
-        wetMix_ = C * C;
-        dryMix_ = D * D;
-
-        // Decay
-        reverb_.setDecay(decay_);
-
-        // Mod Depth
-        reverb_.setTankModDepth(moddepth_ * 8.0f);
-
-        // Mod Rate
-        reverb_.setTankModSpeed(0.3f + modspeed_ * 15.0f);
-
-        // Filter (damp)
-        if (filter_ < 0.5f) {
-            float reverbDampHigh = filter_ * 2.0f;
-            reverb_.setInputFilterHighCutoffPitch(7.0f * reverbDampHigh + 3.0f);
-            // reverb.setTankFilterHighCutFrequency(7. * reverbDampHigh + 3);
-        } else {
-            float reverbDampLow = (filter_ - 0.5f) * 2.0f;
-            reverb_.setInputFilterLowCutoffPitch(9.0f * reverbDampLow);
-            // reverb.setTankFilterLowCutFrequency(9. * reverbDampLow);
-        }
-    }
-
-    float sampleRate_;
-    Dattorro reverb_;
-    Decimator2 decimate_;
-    Interpolator interpolate_;
-    OctaveGenerator octave_;
-    q::highshelf eq1_;
-    q::lowshelf eq2_;
-
-    float buff_[6];
-    float buff_out_[6];
-    int bin_counter_ = 0;
-
-    int effect_mode_ = 0; // 0=none, 1=up, 2=up+down
-    bool disable_input_diffusion_ = false;
-    bool octave_only_mode_ = false;
-
-    float predelay_ = 0.0f;
-    float mix_ = 0.5f;
-    float decay_ = 0.5f;
-    float moddepth_ = 0.5f;
-    float modspeed_ = 0.5f;
-    float filter_ = 0.5f;
-
-    float dryMix_ = 1.0f;
-    float wetMix_ = 1.0f;
-
-    float eq1_gain_ = -11.0f;
-    float eq2_gain_ = 5.0f;
+    EarthDSPCore core_;
+    EarthParameters params_;
 };
 
 EMSCRIPTEN_BINDINGS(earth_module) {

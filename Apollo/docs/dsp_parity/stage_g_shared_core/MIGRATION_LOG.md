@@ -72,11 +72,27 @@ production code runnable.
   freeze `decay -> 1.0` with smoothing.
 * Overdrive golden P7: bit-exact at 48 kHz. Freeze functional test passes.
 
+## G6 — Web/WASM adapter
+
+* `src/wasm_wrapper.cpp` now only translates AudioWorklet parameters into
+  `EarthParameters` and calls `EarthDSPCore`. All DSP logic was removed. The
+  previous implementation is preserved as `src/wasm_wrapper_legacy.cpp` for
+  rollback.
+* `src/makefile_wasm` builds the shared sources (`shared/EarthDSPCore.cpp`,
+  `shared/Dattorro/**`, `shared/Effects/Overdrive.cpp`) and drops the root
+  `Dattorro/`/`Util/` copies.
+* Web UI defaults now match `EarthParameters::defaults()` (decay 0.877,
+  modDepth 0.0625, modSpeed 0.0467, Size Big) and the octave selector offers
+  None/Up/Down/Up+Down mapped to the canonical enum.
+* Not yet build-verified: Emscripten is unavailable in this environment. The
+  adapter uses only the core API that the golden tests exercise.
+* Requires the JUCE adapter (G7) or a matching `octave_dry_mix` decision to be
+  fully equivalent to the VST default (`includeDryInOctavePath = true`).
+
 ## Not yet done
 
-G6 Web adapter, G7 JUCE adapter, G8 removal of the duplicated legacy DSP, and
-the Web↔VST null test. No production file under `Apollo/Source/` or `src/` was
-modified in G1–G5.
+G7 JUCE adapter, G8 removal of the duplicated legacy DSP, and the Web↔VST null
+test. No file under `Apollo/Source/` was modified in G1–G6.
 
 ## Regeneration
 

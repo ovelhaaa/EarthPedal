@@ -17,7 +17,7 @@ milestone.
 | Octave engine (multirate, 48 kHz canonical, shared shelves) | yes | validated P3/P4/P5 |
 | Overdrive | yes (`shared/Effects`) | validated P7 |
 | Latency reporting | partial (`getLatencySamples()` returns 0) | finalised with G6/G7 |
-| WASM adapter | **no** (`src/wasm_wrapper.cpp` unchanged) | G6 |
+| WASM adapter | yes (`src/wasm_wrapper.cpp` -> core) | not build-verified (no Emscripten) |
 | JUCE adapter | **no** (`PluginProcessor.cpp` unchanged, except the Stage 1 fixes) | G7 |
 
 ## Consequence

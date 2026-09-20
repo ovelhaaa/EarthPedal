@@ -126,14 +126,16 @@ class EarthWorkletProcessor extends AudioWorkletProcessor {
     return [
       { name: 'preDelay', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 },
       { name: 'mix', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
-      { name: 'decay', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
-      { name: 'modDepth', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
-      { name: 'modSpeed', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
+      // Defaults mirror earth::EarthParameters::defaults() (canonical Golden).
+      { name: 'decay', defaultValue: 0.877465, minValue: 0.0, maxValue: 1.0 },
+      { name: 'modDepth', defaultValue: 0.0625, minValue: 0.0, maxValue: 1.0 },
+      { name: 'modSpeed', defaultValue: 0.0466667, minValue: 0.0, maxValue: 1.0 },
       { name: 'filter', defaultValue: 0.5, minValue: 0.0, maxValue: 1.0 },
       { name: 'eq1Gain', defaultValue: -11.0, minValue: -24.0, maxValue: 24.0 },
       { name: 'eq2Gain', defaultValue: 5.0, minValue: -24.0, maxValue: 24.0 },
-      { name: 'reverbSize', defaultValue: 1, minValue: 0, maxValue: 2 },
-      { name: 'octaveMode', defaultValue: 0, minValue: 0, maxValue: 2 },
+      { name: 'reverbSize', defaultValue: 2, minValue: 0, maxValue: 2 },
+      // 0 Off, 1 Up, 2 Down, 3 Both (canonical OctaveMode).
+      { name: 'octaveMode', defaultValue: 0, minValue: 0, maxValue: 3 },
       { name: 'disableInputDiffusion', defaultValue: 0, minValue: 0, maxValue: 1 },
     ];
   }
