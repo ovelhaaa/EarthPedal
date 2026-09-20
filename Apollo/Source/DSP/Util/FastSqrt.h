@@ -2,46 +2,25 @@
 
 #include <bit>
 #include <cstdint>
-#include <limits>
 
-// https://en.wikipedia.org/wiki/Fast_inverse_square_root
+// Fast inverse square root (Quake-style). Uses an explicit 32-bit integer so
+// the result is identical on Windows (32-bit long) and Linux/macOS (64-bit
+// long). The original `long`-based bit hack silently read 8 bytes on LP64
+// platforms. This is used by the legacy octave DSP and by the golden generator
+// (make_golden), so it must be deterministic across platforms.
 static float fastInvSqrt(float number) noexcept
 {
-    //static_assert(std::numeric_limits<float>::is_iec559);
-    //float const y = std::bit_cast<float>(
-    //        0x5F1FFFF9 - (std::bit_cast<std::uint32_t>(x) >> 1));
-    //return y * (0.703952253f * (2.38924456f - (x * y * y)));
+    const float threehalfs = 1.5F;
+    const float x2 = number * 0.5F;
+    float y = number;
 
+    std::uint32_t i = std::bit_cast<std::uint32_t>(y);
+    i = 0x5f3759dfu - (i >> 1);
+    y = std::bit_cast<float>(i);
 
-    // Trouble using bit_cast, not a member of std error even when defining c++20 in makefile, using this found at:
-    //  https://www.geeksforgeeks.org/fast-inverse-square-root/
-    // function to find the inverse square root 
-
-    const float threehalfs = 1.5F; 
- 
-    float x2 = number * 0.5F; 
-    float y = number; 
-  
-    // evil floating point bit level hacking 
-    long i = * ( long * ) &y; 
-  
-    // value is pre-assumed 
-    i = 0x5f3759df - ( i >> 1 ); 
-    y = * ( float * ) &i; 
-  
-    // 1st iteration 
-    y = y * ( threehalfs - ( x2 * y * y ) ); 
-  
-    // 2nd iteration, this can be removed 
-    // y = y * ( threehalfs - ( x2 * y * y ) ); 
- 
-    return y; 
- 
-    //return 1.0/sqrt(x); // work around for compile error using bit_cast
+    y = y * (threehalfs - (x2 * y * y));
+    return y;
 }
-
-
-
 
 static float fastSqrt(float x)
 {

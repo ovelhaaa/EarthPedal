@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <cmath>
+
 using earth::EarthParameters;
 using earth::OctaveMode;
 using earth::PerformanceMode;

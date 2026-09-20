@@ -25,5 +25,11 @@ jobs:
       - name: Build
         run: cmake --build shared/build -j
 
+      # Regenerate the reference on the runner with the frozen production DSP
+      # (make_golden), so the comparison is platform-native and not affected by
+      # libm differences between the committed (Windows) golden and this runner.
+      - name: Regenerate platform-native golden
+        run: ./shared/build/tests/make_golden shared/tests/golden
+
       - name: Run parity gate
         run: ctest --test-dir shared/build --output-on-failure
