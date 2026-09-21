@@ -139,6 +139,11 @@ void Dattorro1997Tank::setTimeScale(const float newTimeScale) {
     timeScale = newTimeScale < 0.0001 ? 0.0001 : newTimeScale;
 
     rescaleApfAndDelayTimes();
+    // The output taps are positions inside the delay lines, so they must scale
+    // with the same timeScale as the delays. Previously they scaled only with
+    // sampleRateScale, which made Medium/Large sample a coherent early region of
+    // the (longer) delay lines and produced an audible distinct echo.
+    rescaleTapTimes();
 }
 
 #pragma GCC pop_options
@@ -222,11 +227,13 @@ void Dattorro1997Tank::clear() {
 int maxScaledOutputTap = 0;
 
 inline int Dattorro1997Tank::calcMaxTime(float delayTime) {
-    maxScaledOutputTap = *std::max_element(scaledOutputTaps.begin(),
-                                                scaledOutputTaps.end());
+    // Size the buffers for the largest supported timeScale so the taps (which
+    // now scale with timeScale) always fit, regardless of the current size.
+    const int maxTap = *std::max_element(std::begin(kOutputTaps), std::end(kOutputTaps));
+    maxScaledOutputTap = (int)((float)maxTap * sampleRateScale * maxTimeScale);
 
     return (int)(sampleRateScale * (delayTime * maxTimeScale + 
-                                         maxScaledOutputTap + timePadding));
+                                         (float)maxTap * maxTimeScale + timePadding));
 }
 
 void Dattorro1997Tank::initialiseDelaysAndApfs() {
@@ -292,7 +299,7 @@ void Dattorro1997Tank::rescaleApfAndDelayTimes() {
 
 void Dattorro1997Tank::rescaleTapTimes() {
     for (size_t i = 0; i < scaledOutputTaps.size(); ++i) {
-        scaledOutputTaps[i] = (int)((float)kOutputTaps[i] * sampleRateScale);
+        scaledOutputTaps[i] = (int)((float)kOutputTaps[i] * sampleRateScale * timeScale);
     }
 }
 

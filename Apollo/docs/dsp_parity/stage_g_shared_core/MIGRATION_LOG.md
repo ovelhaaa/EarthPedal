@@ -116,6 +116,14 @@ production code runnable.
 * `Apollo/Source/DSP/**` is no longer compiled by `CMakeLists.txt`; it stays in
   the tree until G8.
 
+## G8 (partial) — output-taps timeScale fix
+
+* Found while listening to Size Large: the tail had a distinct echo because the
+  output taps scaled only with `sampleRateScale`, not `timeScale`. Fixed in all
+  three Dattorro copies; `setTimeScale` now recomputes taps and `calcMaxTime`
+  sizes for `maxTimeScale`. Small is unchanged; Medium/Large are intentionally
+  changed. Golden regenerated. See `../OUTPUT_TAPS_FIX.md`.
+
 ## Not yet done
 
 G8 removal of the duplicated legacy DSP, and the Web↔VST null test.
