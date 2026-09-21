@@ -206,15 +206,8 @@ void ApolloLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int width, 
     const float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
     drawVintageKnob (g, centre, knobRadius, angle, dimmed, focused, active);
 
-    if (focused)
-    {
-        g.setColour (ApolloTheme::orange.withAlpha (0.18f));
-        g.drawEllipse (centre.x - outerRadius - sc (3.0f), centre.y - outerRadius - sc (3.0f),
-                       (outerRadius + sc (3.0f)) * 2.0f, (outerRadius + sc (3.0f)) * 2.0f, sc (3.2f));
-        g.setColour (ApolloTheme::orange.withAlpha (0.95f));
-        g.drawEllipse (centre.x - outerRadius, centre.y - outerRadius,
-                       outerRadius * 2.0f, outerRadius * 2.0f, sc (1.6f));
-    }
+    // No focus ring is drawn (see drawFocusHalo).
+    juce::ignoreUnused (focused);
 }
 
 //==============================================================================
@@ -303,10 +296,10 @@ void ApolloLookAndFeel::drawLinearSlider (Graphics& g, int x, int y, int width, 
 //==============================================================================
 void ApolloLookAndFeel::drawFocusHalo (Graphics& g, Rectangle<float> bounds, float corner)
 {
-    g.setColour (ApolloTheme::orange.withAlpha (0.18f));
-    g.drawRoundedRectangle (bounds.expanded (sc (2.0f)), corner + sc (2.0f), sc (3.0f));
-    g.setColour (ApolloTheme::orange.withAlpha (0.95f));
-    g.drawRoundedRectangle (bounds, corner, sc (1.6f));
+    // Focus indicators are intentionally not drawn. Controls still receive
+    // keyboard focus (navigation/automation keep working), but the orange halo
+    // that appeared whenever a control was clicked is suppressed.
+    juce::ignoreUnused (g, bounds, corner);
 }
 
 void ApolloLookAndFeel::drawRocker (Graphics& g, juce::ToggleButton& button, bool highlighted, bool down)
