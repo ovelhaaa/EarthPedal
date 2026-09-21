@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.15)
 
+# The macOS 15 SDK marks CGWindowListCreateImage (still used by JUCE 8.0.0's
+# juceaide) as obsoleted, which is a hard error when the deployment target is
+# >= 15.0. A lower target turns it into the deprecation warning that JUCE
+# already suppresses, so juceaide builds on the macOS 15 runners. Set before
+# project()/FetchContent so it applies to juceaide too.
+if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target")
+endif()
+
 project(Apollo VERSION 1.0.0)
 
 include(FetchContent)
