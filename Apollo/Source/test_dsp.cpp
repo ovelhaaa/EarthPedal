@@ -86,9 +86,10 @@ void runTestForSampleRate(double sampleRate, const String& filename)
         throw std::runtime_error("Could not open WAV output: " + filename.toStdString());
 
     WavAudioFormat format;
-    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(std::move(outputStream), sampleRate, 2, 16, {}, 0));
+    std::unique_ptr<AudioFormatWriter> writer(format.createWriterFor(outputStream.get(), sampleRate, 2, 16, {}, 0));
     if (writer == nullptr)
         throw std::runtime_error("Could not create WAV writer: " + filename.toStdString());
+    outputStream.release(); // JUCE 8.0.0 transfers stream ownership on success.
 
     if (! writer->writeFromAudioSampleBuffer(buffer, 0, totalSamples))
         throw std::runtime_error("Could not write WAV samples: " + filename.toStdString());
@@ -98,11 +99,16 @@ void runTestForSampleRate(double sampleRate, const String& filename)
         throw std::runtime_error("WAV output is missing or empty: " + filename.toStdString());
 }
 
+void runInterfaceTests (const juce::File& output);
+
 int main(int argc, char* argv[])
 {
-    juce::ignoreUnused(argc, argv);
     juce::ScopedJuceInitialiser_GUI guiInitialiser;
-    // std::cout << "Starting Apollo DSP Validation Tests..." << std::endl;
+    if (argc > 1 && String (argv[1]) == "--ui")
+    {
+        runInterfaceTests (argc > 2 ? File (String (argv[2])) : File::getCurrentWorkingDirectory().getChildFile ("ui-evidence"));
+        return 0;
+    }
 
     for (const auto sampleRate : { 44100.0, 48000.0, 96000.0 })
     {

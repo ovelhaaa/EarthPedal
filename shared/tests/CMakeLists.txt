@@ -7,6 +7,10 @@ target_link_libraries(golden_test PRIVATE earth_core)
 add_test(NAME golden
          COMMAND golden_test ${CMAKE_CURRENT_SOURCE_DIR}/golden)
 
+add_executable(damp_history_test damp_history_test.cpp)
+target_link_libraries(damp_history_test PRIVATE earth_core)
+add_test(NAME damp_history COMMAND damp_history_test)
+
 # Optional: regenerate the golden from the production Apollo Dattorro reference.
 set(_apollo_dsp "${CMAKE_CURRENT_SOURCE_DIR}/../../Apollo/Source/DSP")
 if(EXISTS "${_apollo_dsp}/Dattorro/Dattorro.cpp")

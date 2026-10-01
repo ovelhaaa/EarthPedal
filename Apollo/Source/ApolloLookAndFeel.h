@@ -5,7 +5,7 @@
 
 //==============================================================================
 // Single LookAndFeel that draws every physical control of the Apollo rack:
-// vintage knobs with printed scales, a recessed fader slot, rocker switches,
+// low-profile instrument knobs with printed scales, a recessed fader slot, rocker switches,
 // illuminated push buttons, segmented mechanical selectors and technical
 // readout labels. Geometry and painting are kept in dedicated helpers so no
 // method grows into a monolith.
@@ -52,7 +52,7 @@ private:
                         float innerRadius, float startAngle, float endAngle,
                         bool bipolar, bool dim);
 
-    void drawVintageKnob (juce::Graphics&, juce::Point<float> centre, float radius,
+    void drawInstrumentKnob (juce::Graphics&, juce::Point<float> centre, float radius,
                           float angle, bool dimmed, bool focused, bool active);
 
     void drawRocker (juce::Graphics&, juce::ToggleButton&, bool highlighted, bool down);

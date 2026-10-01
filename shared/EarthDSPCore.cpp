@@ -210,9 +210,11 @@ void EarthDSPCore::applyStaticParameters(const EarthParameters& p) {
 
 void EarthDSPCore::applyDamp(float damp) {
     if (damp < 0.5f) {
+        reverb_.setInputFilterLowCutoffPitch(0.0f); // historical neutral: 13.75 Hz
         const float high = damp * 2.0f;
         reverb_.setInputFilterHighCutoffPitch(7.0f * high + 3.0f); // 3..10
     } else {
+        reverb_.setInputFilterHighCutoffPitch(10.0f); // historical neutral: 14080 Hz
         const float low = (damp - 0.5f) * 2.0f;
         reverb_.setInputFilterLowCutoffPitch(9.0f * low); // 0..9
     }

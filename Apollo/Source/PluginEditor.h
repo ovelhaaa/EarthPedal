@@ -11,6 +11,11 @@ class MomentaryGateButton : public juce::ToggleButton
 {
 public:
     MomentaryGateButton();
+    ~MomentaryGateButton() override;
+    void releaseLocalGate();
+    void visibilityChanged() override;
+    void enablementChanged() override;
+    void parentHierarchyChanged() override;
     void mouseDown (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     bool keyPressed (const juce::KeyPress&) override;
@@ -19,6 +24,29 @@ public:
 
 private:
     bool localKeyGestureActive = false;
+    bool localMouseGestureActive = false;
+};
+
+// A boolean bank whose two faces explicitly select the legacy polarity.
+class ReverbFeedButton : public juce::ToggleButton
+{
+public:
+    void mouseDown (const juce::MouseEvent& e) override
+    {
+        if (isEnabled() && e.mods.isLeftButtonDown())
+        {
+            mouseGesture = true;
+            grabKeyboardFocus();
+        }
+    }
+    void mouseUp (const juce::MouseEvent& e) override
+    {
+        if (mouseGesture && isEnabled() && getLocalBounds().contains (e.getPosition()))
+            setToggleState (e.x >= getWidth() / 2, juce::sendNotificationSync);
+        mouseGesture = false;
+    }
+private:
+    bool mouseGesture = false;
 };
 
 class ApolloAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -43,25 +71,25 @@ private:
     ApolloAudioProcessor& audioProcessor;
     ApolloLookAndFeel customLookAndFeel;
 
-    // Physical modules (decorative back plates).
-    ApolloRackPanel reverbPanel      { "REVERB", "SPACE GENERATOR" };
-    ApolloRackPanel outputPanel      { "OUTPUT", "DRY / WET" };
-    ApolloRackPanel octavePanel      { "OCTAVE", "SIGNAL GENERATOR" };
-    ApolloRackPanel performancePanel { "PERFORMANCE", "OPERATIONAL CONTROL" };
+    // Non-interactive section captions on one shared instrument surface.
+    ApolloRackPanel reverbPanel      { "SPACE" };
+    ApolloRackPanel outputPanel      { "OUTPUT" };
+    ApolloRackPanel octavePanel      { "OCTAVE" };
+    ApolloRackPanel performancePanel { "PERFORM" };
 
-    // Console status annunciators (decorative, non-focusable).
-    ApolloAnnunciator lfoAnnunciator;
+    juce::TooltipWindow tooltipWindow { this, 650 };
 
     juce::Slider faderMix;
     juce::Slider knobDecay, knobPredelay, knobDamp, knobModSpeed, knobModDepth, knobEq1, knobEq2;
     juce::Label lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth, lblEq1, lblEq2;
     juce::Label valueDecay, valuePredelay, valueDamp, valueModSpeed, valueModDepth, valueEq1, valueEq2;
-    juce::Label lblToneHigh, lblToneLow, lblDry, lblWet, lblPerformNote;
+    juce::Label lblToneHigh, lblToneFlat, lblToneLow, lblDry, lblWet;
 
     ApolloSelector comboTimeScale, comboEffectMode, comboFootswitchMode;
     juce::Label lblTimeScale, lblEffectMode, lblFootswitchMode;
     juce::Label lblInputDiffusion, lblOctaveDryMix;
-    juce::ToggleButton btnInputDiffusion, btnOctaveDryMix, btnBypass;
+    juce::ToggleButton btnInputDiffusion, btnBypass;
+    ReverbFeedButton btnOctaveDryMix;
     MomentaryGateButton btnMomentaryEffect;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> faderMixAttachment;

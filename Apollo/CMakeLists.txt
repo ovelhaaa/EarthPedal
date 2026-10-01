@@ -11,6 +11,8 @@ endif()
 
 project(Apollo VERSION 1.0.0)
 
+option(JUCE_COPY_PLUGIN_AFTER_BUILD "Copy Apollo to the system plugin folder after building" ON)
+
 include(FetchContent)
 FetchContent_Declare(
     juce
@@ -24,8 +26,8 @@ juce_add_plugin(Apollo
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE
+    EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+    COPY_PLUGIN_AFTER_BUILD ${JUCE_COPY_PLUGIN_AFTER_BUILD}
     PLUGIN_MANUFACTURER_CODE GuML # GuitarML
     PLUGIN_CODE Apol # Apollo
     FORMATS VST3 AU Standalone
@@ -83,10 +85,14 @@ target_include_directories(Apollo
 )
 
 juce_add_console_app(ApolloTest)
-target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
+target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/test_ui.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
 target_include_directories(ApolloTest PRIVATE Source "${EARTH_SHARED_DIR}" Source/DSP)
 target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
 
-target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0)
+target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+
+enable_testing()
+add_test(NAME apollo_dsp COMMAND ApolloTest)
+add_test(NAME apollo_ui_contract COMMAND ApolloTest --ui "${CMAKE_CURRENT_BINARY_DIR}/ui-evidence")
 
