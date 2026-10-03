@@ -13,7 +13,8 @@ instead of copying either sibling's composition.
 
 - The pinned upstream Montserrat 7.222 release supplies the four font payloads
   at configure time. JUCE embeds them in the plugin and caches each typeface;
-  no host font installation is consulted at runtime.
+  no host font installation is consulted at runtime. BinaryData receives raw
+  TTF data—there is no Base64 decoding or whitespace-sensitive text payload.
 - The wordmark uses Bold with deliberate tracking, while section names use
   SemiBold, labels and selectors use Medium, and values use Regular.
 - Shared type sizes, hairline width, and corner radius are defined in

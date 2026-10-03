@@ -4,9 +4,25 @@ namespace ApolloTheme
 {
     namespace
     {
+        bool isSfntFontData (const void* data, int size)
+        {
+            if (data == nullptr || size < 4)
+                return false;
+
+            const auto* bytes = static_cast<const unsigned char*> (data);
+            const bool trueType = bytes[0] == 0x00 && bytes[1] == 0x01
+                               && bytes[2] == 0x00 && bytes[3] == 0x00;
+            const bool openType = bytes[0] == 'O' && bytes[1] == 'T'
+                               && bytes[2] == 'T' && bytes[3] == 'O';
+            return trueType || openType;
+        }
+
         juce::Typeface::Ptr loadTypeface (const void* data, int size)
         {
-            if (data == nullptr || size <= 0)
+            // ApolloFontData contains raw upstream TTF bytes. Reject textual
+            // Base64 (including wrapped Base64) rather than silently handing
+            // invalid data to the platform font loader.
+            if (! isSfntFontData (data, size))
                 return {};
             return juce::Typeface::createSystemTypefaceFor (data, static_cast<size_t> (size));
         }
