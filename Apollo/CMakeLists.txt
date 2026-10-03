@@ -21,6 +21,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(juce)
 
+# Pin the same upstream Montserrat release for every build. The font payloads
+# are fetched at configure time and compiled into ApolloFonts below; they are
+# never loaded from the host operating system at runtime.
+FetchContent_Declare(
+    montserrat_fonts
+    GIT_REPOSITORY https://github.com/JulietaUla/Montserrat.git
+    GIT_TAG v7.222
+    GIT_SHALLOW TRUE
+)
+FetchContent_GetProperties(montserrat_fonts)
+if(NOT montserrat_fonts_POPULATED)
+    FetchContent_Populate(montserrat_fonts)
+endif()
+
 juce_add_plugin(Apollo
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
@@ -56,6 +70,15 @@ target_sources(Apollo
         ${EARTH_CORE_SOURCES}
 )
 
+juce_add_binary_data(ApolloFonts
+    NAMESPACE ApolloFontData
+    SOURCES
+        "${montserrat_fonts_SOURCE_DIR}/fonts/ttf/Montserrat-Regular.ttf"
+        "${montserrat_fonts_SOURCE_DIR}/fonts/ttf/Montserrat-Medium.ttf"
+        "${montserrat_fonts_SOURCE_DIR}/fonts/ttf/Montserrat-SemiBold.ttf"
+        "${montserrat_fonts_SOURCE_DIR}/fonts/ttf/Montserrat-Bold.ttf"
+)
+
 target_compile_definitions(Apollo
     PUBLIC
         JUCE_WEB_BROWSER=0
@@ -68,6 +91,7 @@ target_link_libraries(Apollo
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        ApolloFonts
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -87,7 +111,7 @@ target_include_directories(Apollo
 juce_add_console_app(ApolloTest)
 target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/test_ui.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
 target_include_directories(ApolloTest PRIVATE Source "${EARTH_SHARED_DIR}" Source/DSP)
-target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors ApolloFonts juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
 
 target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
@@ -95,4 +119,3 @@ target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOP
 enable_testing()
 add_test(NAME apollo_dsp COMMAND ApolloTest)
 add_test(NAME apollo_ui_contract COMMAND ApolloTest --ui "${CMAKE_CURRENT_BINARY_DIR}/ui-evidence")
-

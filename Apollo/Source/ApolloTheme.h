@@ -4,6 +4,15 @@
 // Vector instrument surfaces on a single ivory chassis.
 namespace ApolloTheme
 {
+    namespace Metrics
+    {
+        inline constexpr float sectionHeading = 11.0f;
+        inline constexpr float controlLabel = 9.5f;
+        inline constexpr float controlValue = 9.5f;
+        inline constexpr float microLabel = 7.0f;
+        inline constexpr float cornerRadius = 2.0f;
+        inline constexpr float hairline = 0.8f;
+    }
     inline const juce::Colour chassisMid        { 0xffeee9dd };
     inline const juce::Colour chassisEdge       { 0xffb9b4a8 };
     inline const juce::Colour graphiteLight     { 0xff343638 };
@@ -32,9 +41,13 @@ namespace ApolloTheme
     inline const char* const bipolarProperty  = "apolloBipolar";
     inline const char* const feedProperty     = "apolloFeed";
     enum class ButtonStyle { Rocker = 0, Momentary, Bypass, Plain };
+    enum class FontWeight { Regular = 0, Medium, SemiBold, Bold };
+    juce::Font font (float size, FontWeight weight, float tracking = 0.0f);
     juce::Font headingFont (float size);
     juce::Font labelFont (float size);
     juce::Font valueFont (float size);
+    juce::String fontFamily();
+    juce::Typeface::Ptr embeddedTypeface (FontWeight weight);
     void drawInsetWell (juce::Graphics&, juce::Rectangle<float>, float corner, float depth = 1.0f);
 }
 

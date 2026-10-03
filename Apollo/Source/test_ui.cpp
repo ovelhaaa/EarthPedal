@@ -76,6 +76,20 @@ void snapshot (juce::Component& editor, const juce::File& directory, const juce:
 
 void runInterfaceTests (const juce::File& output)
 {
+    struct ExpectedFont { ApolloTheme::FontWeight weight; const char* style; };
+    for (const auto& expected : { ExpectedFont { ApolloTheme::FontWeight::Regular, "Regular" },
+                                  ExpectedFont { ApolloTheme::FontWeight::Medium, "Medium" },
+                                  ExpectedFont { ApolloTheme::FontWeight::SemiBold, "SemiBold" },
+                                  ExpectedFont { ApolloTheme::FontWeight::Bold, "Bold" } })
+    {
+        const auto face = ApolloTheme::embeddedTypeface (expected.weight);
+        require (face != nullptr && face->getStringWidth ("APOLLO") > 0.0f,
+                 "Embedded Montserrat typeface did not instantiate");
+        require (face->getName().containsIgnoreCase ("Montserrat"),
+                 "Embedded typeface family is not Montserrat");
+        require (face->getStyle().removeCharacters (" -").containsIgnoreCase (expected.style),
+                 "Embedded Montserrat typeface has the wrong style");
+    }
     require (output.createDirectory().wasOk(), "Cannot create snapshot directory");
     ApolloAudioProcessor processor;
     require (processor.getParameters().size() == 15, "Parameter count changed");
