@@ -30,7 +30,8 @@ void styleValue (juce::Label& label, float size)
 }
 
 void styleKnob (juce::Slider& slider, juce::Label& caption, juce::Label& value,
-                const juce::String& name, float captionSize = 10.0f, float valueSize = 10.0f)
+                const juce::String& name, float captionSize = ApolloTheme::Metrics::controlLabel,
+                float valueSize = ApolloTheme::Metrics::controlValue)
 {
     slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
@@ -185,9 +186,9 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     addAndMakeVisible (lblToneHigh);
     addAndMakeVisible (lblToneLow);
     addAndMakeVisible (lblToneFlat);
-    styleCaption (lblToneHigh, "HIGH CUT", 7.5f);
-    styleCaption (lblToneFlat, "FLAT", 7.5f);
-    styleCaption (lblToneLow, "LOW CUT", 7.5f);
+    styleCaption (lblToneHigh, "HI CUT", ApolloTheme::Metrics::microLabel);
+    styleCaption (lblToneFlat, "FLAT", ApolloTheme::Metrics::microLabel);
+    styleCaption (lblToneLow, "LO CUT", ApolloTheme::Metrics::microLabel);
     lblToneHigh.setColour (juce::Label::textColourId, ApolloTheme::textOnPanelDim);
     lblToneLow.setColour (juce::Label::textColourId, ApolloTheme::textOnPanelDim);
 
@@ -195,7 +196,7 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
                              const juce::StringArray& choices,
                              std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>& attachment)
     {
-        styleCaption (caption, name, 10.0f);
+        styleCaption (caption, name, ApolloTheme::Metrics::controlLabel);
         addAndMakeVisible (caption);
         addAndMakeVisible (combo);
         combo.addItemList (choices, 1);
@@ -304,8 +305,8 @@ juce::Rectangle<float> ApolloAudioProcessorEditor::scaled (float x, float y, flo
 
 void ApolloAudioProcessorEditor::applyFontScale (float s)
 {
-    const auto caption = [s] (juce::Label& l) { l.setFont (ApolloTheme::labelFont (10.0f * s)); };
-    const auto value   = [s] (juce::Label& l) { l.setFont (ApolloTheme::valueFont (10.0f * s)); };
+    const auto caption = [s] (juce::Label& l) { l.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::controlLabel * s)); };
+    const auto value   = [s] (juce::Label& l) { l.setFont (ApolloTheme::valueFont (ApolloTheme::Metrics::controlValue * s)); };
 
     caption (lblPredelay); caption (lblDecay); caption (lblDamp);
     caption (lblModSpeed); caption (lblModDepth); caption (lblEq1); caption (lblEq2);
@@ -316,9 +317,9 @@ void ApolloAudioProcessorEditor::applyFontScale (float s)
     value (valuePredelay); value (valueDecay); value (valueDamp);
     value (valueModSpeed); value (valueModDepth); value (valueEq1); value (valueEq2);
 
-    lblToneHigh.setFont (ApolloTheme::labelFont (7.5f * s));
-    lblToneLow.setFont (ApolloTheme::labelFont (7.5f * s));
-    lblToneFlat.setFont (ApolloTheme::labelFont (7.5f * s));
+    lblToneHigh.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
+    lblToneLow.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
+    lblToneFlat.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
 }
 
 void ApolloAudioProcessorEditor::timerCallback()
@@ -387,11 +388,13 @@ void ApolloAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawRect (getLocalBounds(), 1);
     const float s = getDesignScale();
     g.setColour (ApolloTheme::textOnChassis);
-    g.setFont (ApolloTheme::headingFont (38.0f * s));
-    g.drawText ("APOLLO", scaled (36, 20, 400, 46), juce::Justification::centredLeft, false);
+    g.setFont (ApolloTheme::font (39.0f * s, ApolloTheme::FontWeight::Bold, 0.12f));
+    g.drawText ("APOLLO", scaled (36, 18, 400, 48), juce::Justification::centredLeft, false);
     g.setColour (ApolloTheme::textOnChassisSoft);
-    g.setFont (ApolloTheme::labelFont (10.0f * s));
-    g.drawText ("STEREO SPACE PROCESSOR", scaled (38, 68, 400, 18), juce::Justification::centredLeft, false);
+    g.setFont (ApolloTheme::font (9.0f * s, ApolloTheme::FontWeight::Medium, 0.14f));
+    g.drawText ("STEREO SPACE PROCESSOR", scaled (39, 67, 400, 18), juce::Justification::centredLeft, false);
+    g.setColour (ApolloTheme::orange.withAlpha (0.75f));
+    g.fillRect (scaled (38, 91, 78, 2));
 
     g.setColour (ApolloTheme::graphite);
     g.fillRoundedRectangle (scaled (24, 112, 852, 484), 3.0f * s);
@@ -423,9 +426,9 @@ void ApolloAudioProcessorEditor::resized()
     const auto knob = [&R] (juce::Slider& control, juce::Label& caption, juce::Label& value,
                             float cx, float y, float diameter)
     {
-        caption.setBounds (R (cx - 58, y - 22, 116, 18));
+        caption.setBounds (R (cx - 58, y - 23, 116, 18));
         control.setBounds (R (cx - diameter / 2, y, diameter, diameter));
-        value.setBounds (R (cx - 58, y + diameter + 2, 116, 20));
+        value.setBounds (R (cx - 58, y + diameter + 3, 116, 18));
     };
     knob (knobPredelay, lblPredelay, valuePredelay, 112, 182, 92);
     knob (knobDecay, lblDecay, valueDecay, 258, 170, 116);

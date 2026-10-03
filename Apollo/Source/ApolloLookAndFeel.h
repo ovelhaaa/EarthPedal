@@ -41,6 +41,9 @@ public:
                             bool hasSubMenu, const juce::String& text, const juce::String& shortcutKeyText,
                             const juce::Drawable* icon, const juce::Colour* textColour) override;
 
+    juce::Font getPopupMenuFont() override;
+    juce::Font getTooltipFont() override;
+
     static bool isDimmed (const juce::Component& c) { return (bool) c.getProperties()[ApolloTheme::dimProperty]; }
 
 private:

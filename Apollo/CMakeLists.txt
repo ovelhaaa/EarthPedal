@@ -56,6 +56,15 @@ target_sources(Apollo
         ${EARTH_CORE_SOURCES}
 )
 
+juce_add_binary_data(ApolloFonts
+    NAMESPACE ApolloFontData
+    SOURCES
+        Resources/Fonts/Montserrat-Regular.b64
+        Resources/Fonts/Montserrat-Medium.b64
+        Resources/Fonts/Montserrat-SemiBold.b64
+        Resources/Fonts/Montserrat-Bold.b64
+)
+
 target_compile_definitions(Apollo
     PUBLIC
         JUCE_WEB_BROWSER=0
@@ -68,6 +77,7 @@ target_link_libraries(Apollo
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        ApolloFonts
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -87,7 +97,7 @@ target_include_directories(Apollo
 juce_add_console_app(ApolloTest)
 target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/test_ui.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
 target_include_directories(ApolloTest PRIVATE Source "${EARTH_SHARED_DIR}" Source/DSP)
-target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors ApolloFonts juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)
 
 target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
@@ -95,4 +105,3 @@ target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOP
 enable_testing()
 add_test(NAME apollo_dsp COMMAND ApolloTest)
 add_test(NAME apollo_ui_contract COMMAND ApolloTest --ui "${CMAKE_CURRENT_BINARY_DIR}/ui-evidence")
-
