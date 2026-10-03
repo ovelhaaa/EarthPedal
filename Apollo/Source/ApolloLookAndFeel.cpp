@@ -23,7 +23,36 @@ ApolloLookAndFeel::ApolloLookAndFeel()
 }
 
 juce::Font ApolloLookAndFeel::getPopupMenuFont() { return ApolloTheme::font (sc (11.0f), ApolloTheme::FontWeight::Medium); }
-juce::Font ApolloLookAndFeel::getTooltipFont() { return ApolloTheme::font (sc (11.0f), ApolloTheme::FontWeight::Regular); }
+juce::TextLayout ApolloLookAndFeel::tooltipLayout (const juce::String& text)
+{
+    juce::AttributedString attributed;
+    attributed.setJustification (juce::Justification::centred);
+    attributed.append (text, ApolloTheme::font (sc (11.0f), ApolloTheme::FontWeight::Regular),
+                       findColour (juce::TooltipWindow::textColourId));
+    juce::TextLayout layout;
+    layout.createLayoutWithBalancedLineLengths (attributed, sc (400.0f));
+    return layout;
+}
+
+juce::Rectangle<int> ApolloLookAndFeel::getTooltipBounds (const juce::String& text,
+                                                        juce::Point<int> position,
+                                                        juce::Rectangle<int> parentArea)
+{
+    const auto layout = tooltipLayout (text);
+    const int width = juce::roundToInt (std::ceil (layout.getWidth() + sc (14.0f)));
+    const int height = juce::roundToInt (std::ceil (layout.getHeight() + sc (6.0f)));
+    return juce::Rectangle<int> (position.x > parentArea.getCentreX() ? position.x - width - 12 : position.x + 24,
+                                 position.y > parentArea.getCentreY() ? position.y - height - 6 : position.y + 6,
+                                 width, height).constrainedWithin (parentArea);
+}
+
+void ApolloLookAndFeel::drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height)
+{
+    g.fillAll (findColour (juce::TooltipWindow::backgroundColourId));
+    g.setColour (findColour (juce::TooltipWindow::outlineColourId));
+    g.drawRect (0, 0, width, height);
+    tooltipLayout (text).draw (g, juce::Rectangle<float> ((float) width, (float) height));
+}
 
 void ApolloLookAndFeel::drawKnobScale (Graphics& g, Point<float> centre, float outerRadius,
                                       float innerRadius, float startAngle, float endAngle,

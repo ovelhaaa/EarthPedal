@@ -53,7 +53,7 @@ namespace ApolloTheme
 
         jassertfalse;
         return juce::Font (juce::FontOptions (juce::Font::getDefaultSansSerifFontName(), size,
-                                               juce::Font::getDefaultStyle()))
+                                               juce::Font::plain))
             .withExtraKerningFactor (tracking);
     }
     juce::Font headingFont (float size)

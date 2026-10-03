@@ -10,6 +10,9 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      # JUCE 8.0.0 configures juceaide in a separate CMake process.
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +33,7 @@ jobs:
             ${{ matrix.os }}-juce-v2-
 
       - name: Configure CMake
-        run: cmake -B Apollo/build -S Apollo -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B Apollo/build -S Apollo -DCMAKE_BUILD_TYPE=Release -DJUCE_COPY_PLUGIN_AFTER_BUILD=OFF
 
       - name: Build VST3 and Standalone (Windows)
         if: runner.os == 'Windows'

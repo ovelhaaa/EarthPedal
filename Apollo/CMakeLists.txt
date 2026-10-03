@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.15)
 # >= 15.0. A lower target turns it into the deprecation warning that JUCE
 # already suppresses, so juceaide builds on the macOS 15 runners. Set before
 # project()/FetchContent so it applies to juceaide too.
-if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target")
 endif()
 

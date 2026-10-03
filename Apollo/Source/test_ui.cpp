@@ -83,7 +83,7 @@ void runInterfaceTests (const juce::File& output)
                                   ExpectedFont { ApolloTheme::FontWeight::Bold, "Bold" } })
     {
         const auto face = ApolloTheme::embeddedTypeface (expected.weight);
-        require (face != nullptr && face->getStringWidth ("APOLLO") > 0.0f,
+        require (face != nullptr && face->getStringWidth (juce::TypefaceMetricsKind::portable, "APOLLO") > 0.0f,
                  "Embedded Montserrat typeface did not instantiate");
         require (face->getName().containsIgnoreCase ("Montserrat"),
                  "Embedded typeface family is not Montserrat");

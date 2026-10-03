@@ -42,7 +42,8 @@ public:
                             const juce::Drawable* icon, const juce::Colour* textColour) override;
 
     juce::Font getPopupMenuFont() override;
-    juce::Font getTooltipFont() override;
+    juce::Rectangle<int> getTooltipBounds (const juce::String&, juce::Point<int>, juce::Rectangle<int>) override;
+    void drawTooltip (juce::Graphics&, const juce::String&, int width, int height) override;
 
     static bool isDimmed (const juce::Component& c) { return (bool) c.getProperties()[ApolloTheme::dimProperty]; }
 
@@ -50,6 +51,8 @@ private:
     float uiScale = 1.0f;
 
     float sc (float value) const { return value * uiScale; }
+
+    juce::TextLayout tooltipLayout (const juce::String& text);
 
     void drawKnobScale (juce::Graphics&, juce::Point<float> centre, float outerRadius,
                         float innerRadius, float startAngle, float endAngle,
