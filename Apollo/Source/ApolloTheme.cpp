@@ -4,29 +4,23 @@ namespace ApolloTheme
 {
     namespace
     {
-        juce::Typeface::Ptr loadTypeface (const char* encodedData, int encodedSize)
+        juce::Typeface::Ptr loadTypeface (const void* data, int size)
         {
-            jassert (encodedData != nullptr && encodedSize > 0);
-            juce::MemoryOutputStream decoded;
-            const auto encoded = juce::String::fromUTF8 (encodedData, encodedSize);
-            if (! juce::Base64::convertFromBase64 (decoded, encoded))
-            {
-                jassertfalse;
+            if (data == nullptr || size <= 0)
                 return {};
-            }
-            return juce::Typeface::createSystemTypefaceFor (decoded.getData(), decoded.getDataSize());
+            return juce::Typeface::createSystemTypefaceFor (data, static_cast<size_t> (size));
         }
     }
     juce::Typeface::Ptr embeddedTypeface (FontWeight weight)
     {
-        static const auto regular = loadTypeface (ApolloFontData::MontserratRegular_b64,
-                                                   ApolloFontData::MontserratRegular_b64Size);
-        static const auto medium = loadTypeface (ApolloFontData::MontserratMedium_b64,
-                                                  ApolloFontData::MontserratMedium_b64Size);
-        static const auto semiBold = loadTypeface (ApolloFontData::MontserratSemiBold_b64,
-                                                    ApolloFontData::MontserratSemiBold_b64Size);
-        static const auto bold = loadTypeface (ApolloFontData::MontserratBold_b64,
-                                                ApolloFontData::MontserratBold_b64Size);
+        static const auto regular = loadTypeface (ApolloFontData::MontserratRegular_ttf,
+                                                   ApolloFontData::MontserratRegular_ttfSize);
+        static const auto medium = loadTypeface (ApolloFontData::MontserratMedium_ttf,
+                                                  ApolloFontData::MontserratMedium_ttfSize);
+        static const auto semiBold = loadTypeface (ApolloFontData::MontserratSemiBold_ttf,
+                                                    ApolloFontData::MontserratSemiBold_ttfSize);
+        static const auto bold = loadTypeface (ApolloFontData::MontserratBold_ttf,
+                                                ApolloFontData::MontserratBold_ttfSize);
         switch (weight)
         {
             case FontWeight::Medium: return medium;
@@ -37,7 +31,13 @@ namespace ApolloTheme
     }
     juce::Font font (float size, FontWeight weight, float tracking)
     {
-        return juce::Font (juce::FontOptions (embeddedTypeface (weight))).withHeight (size)
+        if (const auto typeface = embeddedTypeface (weight))
+            return juce::Font (juce::FontOptions (typeface)).withHeight (size)
+                .withExtraKerningFactor (tracking);
+
+        jassertfalse;
+        return juce::Font (juce::FontOptions (juce::Font::getDefaultSansSerifFontName(), size,
+                                               juce::Font::getDefaultStyle()))
             .withExtraKerningFactor (tracking);
     }
     juce::Font headingFont (float size)
@@ -52,7 +52,12 @@ namespace ApolloTheme
     {
         return font (size, FontWeight::Regular, 0.015f);
     }
-    juce::String fontFamily() { return embeddedTypeface (FontWeight::Regular)->getName(); }
+    juce::String fontFamily()
+    {
+        if (const auto typeface = embeddedTypeface (FontWeight::Regular))
+            return typeface->getName();
+        return {};
+    }
     void drawInsetWell (juce::Graphics& g, juce::Rectangle<float> bounds, float corner, float depth)
     {
         juce::ignoreUnused (depth);

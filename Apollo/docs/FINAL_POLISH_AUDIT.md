@@ -11,9 +11,9 @@ instead of copying either sibling's composition.
 
 ## Applied visual system
 
-- Font payloads are stored as Base64 text resources, decoded once, and cached
-  as JUCE typefaces. This keeps the repository/branch update text-compatible
-  while still embedding every weight in the plugin binary.
+- The pinned upstream Montserrat 7.222 release supplies the four font payloads
+  at configure time. JUCE embeds them in the plugin and caches each typeface;
+  no host font installation is consulted at runtime.
 - The wordmark uses Bold with deliberate tracking, while section names use
   SemiBold, labels and selectors use Medium, and values use Regular.
 - Shared type sizes, hairline width, and corner radius are defined in
