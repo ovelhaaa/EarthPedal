@@ -22,6 +22,9 @@ ApolloLookAndFeel::ApolloLookAndFeel()
     setColour (juce::TooltipWindow::outlineColourId, ApolloTheme::chassisEdge);
 }
 
+juce::Font ApolloLookAndFeel::getPopupMenuFont() { return ApolloTheme::font (sc (11.0f), ApolloTheme::FontWeight::Medium); }
+juce::Font ApolloLookAndFeel::getTooltipFont() { return ApolloTheme::font (sc (11.0f), ApolloTheme::FontWeight::Regular); }
+
 void ApolloLookAndFeel::drawKnobScale (Graphics& g, Point<float> centre, float outerRadius,
                                       float innerRadius, float startAngle, float endAngle,
                                       bool bipolar, bool dim)
@@ -137,7 +140,7 @@ void ApolloLookAndFeel::drawRocker (Graphics& g, juce::ToggleButton& button, boo
         g.setColour (ApolloTheme::graphiteEdge.withAlpha (highlighted ? 1.0f : 0.5f));
         g.drawRoundedRectangle (face, sc (2), sc (0.8f));
         g.setColour (selected && ! dim ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
-        g.setFont (ApolloTheme::valueFont (sc (10)));
+        g.setFont (ApolloTheme::font (sc (9.0f), ApolloTheme::FontWeight::Medium, 0.015f));
         g.drawText (feed ? (i == 0 ? "OCT" : "OCT + DRY") : (on ? "ON" : "OFF"),
                     face, Justification::centred, false);
     }
@@ -161,7 +164,7 @@ void ApolloLookAndFeel::drawMomentary (Graphics& g, juce::ToggleButton& button, 
     g.setColour (ApolloTheme::graphiteEdge.withAlpha (highlighted ? 1.0f : 0.6f));
     g.drawRoundedRectangle (face, sc (3), sc (1));
     g.setColour (active ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
-    g.setFont (ApolloTheme::headingFont (sc (17)));
+    g.setFont (ApolloTheme::font (sc (15.0f), ApolloTheme::FontWeight::SemiBold, 0.08f));
     g.drawText ("PERFORM", face, Justification::centred, false);
 }
 
@@ -174,7 +177,7 @@ void ApolloLookAndFeel::drawBypass (Graphics& g, juce::ToggleButton& button, boo
     g.fillRoundedRectangle (face, sc (2));
     g.setColour (bypassed ? ApolloTheme::red : ApolloTheme::orange);
     g.fillEllipse (face.getX() + sc (14), face.getCentreY() - sc (3), sc (6), sc (6));
-    g.setFont (ApolloTheme::valueFont (sc (11)));
+    g.setFont (ApolloTheme::font (sc (10.0f), ApolloTheme::FontWeight::Medium, 0.03f));
     g.drawText (bypassed ? "BYPASSED" : "ACTIVE", face.reduced (sc (24), 0).translated (sc (7), 0),
                 Justification::centred, false);
 }
@@ -217,7 +220,7 @@ void ApolloLookAndFeel::drawPushBank (Graphics& g, juce::Rectangle<float> b, juc
         g.setColour (ApolloTheme::graphiteEdge.withAlpha (0.5f));
         g.drawRoundedRectangle (face, sc (2), sc (0.8f));
         g.setColour (on && ! dim ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
-        g.setFont (ApolloTheme::valueFont (sc (9)));
+        g.setFont (ApolloTheme::font (sc (8.5f), ApolloTheme::FontWeight::Medium, 0.02f));
         g.drawText (box.getItemText (i), face.reduced (sc (2)), Justification::centred, false);
     }
 }

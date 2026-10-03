@@ -76,6 +76,7 @@ void snapshot (juce::Component& editor, const juce::File& directory, const juce:
 
 void runInterfaceTests (const juce::File& output)
 {
+    require (ApolloTheme::fontFamily() == "Montserrat", "Unexpected UI font family");
     require (output.createDirectory().wasOk(), "Cannot create snapshot directory");
     ApolloAudioProcessor processor;
     require (processor.getParameters().size() == 15, "Parameter count changed");

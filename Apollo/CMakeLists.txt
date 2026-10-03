@@ -95,4 +95,3 @@ target_compile_definitions(ApolloTest PUBLIC JUCE_USE_DIRECT2D=0 JUCE_MODAL_LOOP
 enable_testing()
 add_test(NAME apollo_dsp COMMAND ApolloTest)
 add_test(NAME apollo_ui_contract COMMAND ApolloTest --ui "${CMAKE_CURRENT_BINARY_DIR}/ui-evidence")
-
