@@ -79,10 +79,11 @@ std::uint64_t fieldFingerprint (juce::Component& field)
     const auto bounds = field.getLocalBounds().withTrimmedTop (36).withTrimmedBottom (26);
     const auto image = field.createComponentSnapshot (bounds);
     require (image.isValid(), "Invalid Space Field snapshot");
+    const juce::Image::BitmapData pixels (image, juce::Image::BitmapData::readOnly);
     std::uint64_t hash = 14695981039346656037ull;
     for (int y = 0; y < image.getHeight(); ++y)
         for (int x = 0; x < image.getWidth(); ++x)
-            hash = (hash ^ image.getPixelAt (x, y).getARGB()) * 1099511628211ull;
+            hash = (hash ^ pixels.getPixelColour (x, y).getARGB()) * 1099511628211ull;
     return hash;
 }
 

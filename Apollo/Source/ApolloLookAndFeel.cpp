@@ -258,6 +258,7 @@ void ApolloLookAndFeel::drawPushBank (Graphics& g, juce::Rectangle<float> b, juc
         const bool hovered = slot.contains (mouse.toFloat());
         g.setColour (on ? (hovered ? ApolloTheme::orangeBright : ApolloTheme::orange).withAlpha (dim ? 0.38f : 1.0f)
                         : hovered ? ApolloTheme::graphiteEdge : ApolloTheme::graphiteLight);
+        g.fillRoundedRectangle (face, sc (2));
         g.setColour (ApolloTheme::graphiteEdge.withAlpha (0.5f));
         g.drawRoundedRectangle (face, sc (2), sc (0.8f));
         g.setColour (on && ! dim ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);

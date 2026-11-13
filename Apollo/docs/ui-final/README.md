@@ -21,9 +21,8 @@ positivo para low cut). Mod Rate mostra o multiplicador do tanque. Os bancos
 segmentados conservam os attachments existentes. O mix horizontal vai de DRY
 a WET. O tamanho base e mínimo é 900 × 620, com escala proporcional do editor.
 
-Os PNGs do redesign são produzidos por `ApolloTest --ui` em `ui-evidence/`
-dentro do diretório de build. Veja [a validação](VALIDATION.md). Os
-[SVGs e PNGs históricos](#material-histórico) correspondem à interface anterior.
+O relatório reúne os resultados e os [renders do editor JUCE](VALIDATION.md#renders-do-editor-juce).
+`ApolloTest --ui` gera a série completa em `ui-evidence/` no diretório de build.
 
 ## Material histórico
 
