@@ -5,7 +5,8 @@ Driftbrigade. A referência foi a branch principal em `d10763c`: cabeçalho e
 organização do editor, escalas e arcos de valor de DriftKnob/DriftLookAndFeel,
 estrutura dos módulos de ParameterSection e modelo visual de MotionField.
 A implementação usa geometria vetorial no JUCE 8.0.0 e mantém a Montserrat
-embutida. As quatro seções acompanham a ordem de leitura e de foco.
+embutida. O símbolo do cabeçalho remete à lente do HAL 9000, com vermelho
+reservado à marca. As quatro seções acompanham a ordem de leitura e de foco.
 
 O Space Field descreve uma resposta espacial paramétrica em tempo relativo.
 O início das reflexões acompanha Pre-delay, e Decay e Size controlam a extensão

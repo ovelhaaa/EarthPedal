@@ -378,20 +378,23 @@ void ApolloAudioProcessorEditor::paint (juce::Graphics& g)
     const float s = getDesignScale();
 
     const auto symbol = scaled (24, 22, 44, 44);
-    g.setColour (chassisMid);
+    g.setColour (graphite);
     g.fillRoundedRectangle (symbol, 4.0f * s);
-    const auto centre = scaled (39, 44, 0, 0).getPosition();
-    g.setColour (orange);
-    g.fillEllipse (centre.x - 2.0f * s, centre.y - 2.0f * s, 4.0f * s, 4.0f * s);
-    g.setColour (textOnChassis);
-    for (float radius : { 8.0f, 15.0f, 22.0f })
-    {
-        juce::Path wave;
-        wave.addCentredArc (centre.x, centre.y, radius * s, radius * s,
-                            0.0f, 0.95f, 2.19f, true);
-        g.strokePath (wave, juce::PathStrokeType (1.2f * s));
-    }
 
+    const auto bezel = symbol.reduced (6.0f * s);
+    g.setColour (graphiteEdge);
+    g.fillEllipse (bezel);
+    g.setColour (graphiteDeep);
+    g.fillEllipse (bezel.reduced (1.5f * s));
+
+    const auto lens = bezel.reduced (5.0f * s);
+    const auto centre = lens.getCentre();
+    juce::ColourGradient lensLight (logoLensCore, centre, logoLensRim, centre.withX (lens.getRight()), true);
+    lensLight.addColour (0.38, logoLensRed);
+    g.setGradientFill (lensLight);
+    g.fillEllipse (lens);
+
+    g.setColour (textOnChassis);
     g.setFont (font (37.0f * s, FontWeight::Bold, 0.10f));
     g.drawText ("APOLLO", scaled (80, 14, 320, 39), juce::Justification::centredLeft);
     g.setColour (textOnChassisSoft);

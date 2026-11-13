@@ -23,6 +23,9 @@ namespace ApolloTheme
     inline const juce::Colour textOnChassisSoft { 0xff56585a };
     inline const juce::Colour orange            { 0xfff36b2b };
     inline const juce::Colour orangeBright      { 0xfff6824b };
+    inline const juce::Colour logoLensRim       { 0xff561e1a };
+    inline const juce::Colour logoLensRed       { 0xffdf301f };
+    inline const juce::Colour logoLensCore      { 0xffffa066 };
     inline constexpr int designWidth = 900, designHeight = 620;
     inline const char* const styleProperty    = "apolloStyle";
     inline const char* const dimProperty      = "apolloDim";
