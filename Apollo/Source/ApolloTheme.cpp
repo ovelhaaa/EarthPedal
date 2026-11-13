@@ -74,9 +74,8 @@ namespace ApolloTheme
             return typeface->getName();
         return {};
     }
-    void drawInsetWell (juce::Graphics& g, juce::Rectangle<float> bounds, float corner, float depth)
+    void drawInsetWell (juce::Graphics& g, juce::Rectangle<float> bounds, float corner)
     {
-        juce::ignoreUnused (depth);
         g.setColour (graphiteDeep);
         g.fillRoundedRectangle (bounds, corner);
         g.setColour (graphiteEdge.withAlpha (0.5f));
@@ -96,9 +95,18 @@ void ApolloRackPanel::setDimmed (bool value)
 }
 void ApolloRackPanel::paint (juce::Graphics& g)
 {
-    const float s = (float) getParentWidth() / ApolloTheme::designWidth;
-    auto strip = getLocalBounds().toFloat().reduced (24.0f * s, 14.0f * s).removeFromTop (22.0f * s);
-    g.setColour (dimmed ? ApolloTheme::textOnPanelDim : ApolloTheme::textOnPanel);
-    g.setFont (ApolloTheme::headingFont (ApolloTheme::Metrics::sectionHeading * s));
+    using namespace ApolloTheme;
+    const float s = scale;
+    auto bounds = getLocalBounds().toFloat();
+    g.setColour (graphite);
+    g.fillRoundedRectangle (bounds, 4.0f * s);
+    auto strip = bounds.removeFromTop (32.0f * s).reduced (14.0f * s, 0.0f);
+    g.setColour (graphiteEdge.withAlpha (0.65f));
+    g.drawHorizontalLine (juce::roundToInt (strip.getBottom()), strip.getX(), strip.getRight());
+    g.setColour (dimmed ? textOnPanelDim : orange);
+    g.fillRect (strip.getX(), strip.getCentreY() - 2.5f * s, 3.0f * s, 5.0f * s);
+    strip.removeFromLeft (11.0f * s);
+    g.setColour (dimmed ? textOnPanelDim : textOnPanel);
+    g.setFont (headingFont (Metrics::sectionHeading * s));
     g.drawText (title, strip, juce::Justification::centredLeft, false);
 }

@@ -3,13 +3,6 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "ApolloTheme.h"
 
-//==============================================================================
-// Single LookAndFeel that draws every physical control of the Apollo rack:
-// low-profile instrument knobs with printed scales, a recessed fader slot, rocker switches,
-// illuminated push buttons, segmented mechanical selectors and technical
-// readout labels. Geometry and painting are kept in dedicated helpers so no
-// method grows into a monolith.
-//==============================================================================
 class ApolloLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
@@ -21,6 +14,8 @@ public:
     void drawRotarySlider (juce::Graphics&, int x, int y, int width, int height,
                            float sliderPosProportional, float rotaryStartAngle,
                            float rotaryEndAngle, juce::Slider&) override;
+
+    juce::Label* createSliderTextBox (juce::Slider&) override;
 
     void drawLinearSlider (juce::Graphics&, int x, int y, int width, int height,
                            float sliderPos, float minSliderPos, float maxSliderPos,
