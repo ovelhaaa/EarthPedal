@@ -53,7 +53,9 @@ void ApolloSpaceField::updateTimer()
 {
     if (! isShowing())
     {
-        stopTimer();
+        // A minimised native peer can restore without a visibility callback.
+        if (getTimerInterval() != hiddenPollIntervalMs)
+            startTimer (hiddenPollIntervalMs);
         return;
     }
 
