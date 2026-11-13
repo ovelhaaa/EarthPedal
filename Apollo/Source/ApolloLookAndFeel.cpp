@@ -10,10 +10,16 @@ ApolloLookAndFeel::ApolloLookAndFeel()
 {
     setColour (juce::Slider::rotarySliderFillColourId, ApolloTheme::orange);
     setColour (juce::Slider::thumbColourId, ApolloTheme::orange);
+    setColour (juce::Slider::textBoxTextColourId, ApolloTheme::textOnPanel);
+    setColour (juce::Slider::textBoxBackgroundColourId, ApolloTheme::graphiteDeep);
+    setColour (juce::Slider::textBoxOutlineColourId, ApolloTheme::graphiteEdge);
+    setColour (juce::Slider::textBoxHighlightColourId, ApolloTheme::orange.withAlpha (0.4f));
+    setColour (juce::TextEditor::focusedOutlineColourId, ApolloTheme::orange);
+    setColour (juce::CaretComponent::caretColourId, ApolloTheme::orangeBright);
     setColour (juce::ComboBox::textColourId, juce::Colours::transparentBlack);
     setColour (juce::ComboBox::backgroundColourId, ApolloTheme::graphiteDeep);
     setColour (juce::Label::textColourId, ApolloTheme::textOnPanel);
-    setColour (juce::PopupMenu::backgroundColourId, ApolloTheme::graphiteDark);
+    setColour (juce::PopupMenu::backgroundColourId, ApolloTheme::graphite);
     setColour (juce::PopupMenu::textColourId, ApolloTheme::textOnPanel);
     setColour (juce::PopupMenu::highlightedBackgroundColourId, ApolloTheme::orange);
     setColour (juce::PopupMenu::highlightedTextColourId, ApolloTheme::graphiteDeep);
@@ -58,17 +64,17 @@ void ApolloLookAndFeel::drawKnobScale (Graphics& g, Point<float> centre, float o
                                       float innerRadius, float startAngle, float endAngle,
                                       bool bipolar, bool dim)
 {
-    constexpr int ticks = 8;
+    constexpr int ticks = 16;
     for (int i = 0; i <= ticks; ++i)
     {
         const float angle = startAngle + (float) i / ticks * (endAngle - startAngle);
         const bool middle = bipolar && i == ticks / 2;
-        const bool major = i == 0 || i == ticks || middle;
+        const bool major = i % 4 == 0;
         const float inner = innerRadius - (major ? sc (2.0f) : 0.0f);
         g.setColour (middle ? ApolloTheme::orange : ApolloTheme::textOnPanelDim.withAlpha (dim ? 0.5f : 0.8f));
         g.drawLine (centre.x + std::sin (angle) * inner, centre.y - std::cos (angle) * inner,
                     centre.x + std::sin (angle) * outerRadius, centre.y - std::cos (angle) * outerRadius,
-                    sc (middle ? 1.5f : 0.8f));
+                    sc (major ? 1.15f : 0.65f));
     }
 }
 
@@ -76,17 +82,11 @@ void ApolloLookAndFeel::drawInstrumentKnob (Graphics& g, Point<float> centre, fl
                                             float angle, bool dimmed, bool focused, bool active)
 {
     const auto body = juce::Rectangle<float> (centre.x - radius, centre.y - radius, radius * 2, radius * 2);
-    g.setColour (juce::Colours::black.withAlpha (0.25f));
-    g.fillEllipse (body.translated (0, sc (1.5f)));
-    juce::ColourGradient finish (ApolloTheme::graphiteLight, body.getX(), body.getY(),
-                                 ApolloTheme::graphiteDeep, body.getX(), body.getBottom(), false);
-    g.setGradientFill (finish);
+    g.setColour (active ? ApolloTheme::graphiteLight : ApolloTheme::graphiteDeep);
     g.fillEllipse (body);
     g.setColour (ApolloTheme::graphiteEdge);
     g.drawEllipse (body.reduced (sc (0.5f)), sc (0.8f));
-    g.setColour (juce::Colours::white.withAlpha (active ? 0.14f : 0.06f));
-    g.drawEllipse (body.reduced (sc (2.0f)), sc (0.8f));
-    g.setColour (dimmed ? ApolloTheme::textOnPanelDim : ApolloTheme::knobPointer);
+    g.setColour (dimmed ? ApolloTheme::textOnPanelDim : ApolloTheme::textOnPanel);
     g.drawLine (centre.x + std::sin (angle) * radius * 0.32f,
                 centre.y - std::cos (angle) * radius * 0.32f,
                 centre.x + std::sin (angle) * radius * 0.86f,
@@ -104,45 +104,55 @@ void ApolloLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int width, 
     const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
     const float radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
     const bool dim = isDimmed (slider);
-    drawKnobScale (g, bounds.getCentre(), radius - sc (2), radius * 0.80f, start, end,
-                   (bool) slider.getProperties()[ApolloTheme::bipolarProperty], dim);
-    drawInstrumentKnob (g, bounds.getCentre(), radius * 0.68f, start + pos * (end - start),
-                        dim, slider.hasKeyboardFocus (true), slider.isMouseOverOrDragging());
+    const bool bipolar = (bool) slider.getProperties()[ApolloTheme::bipolarProperty];
+    const bool hover = slider.isMouseOverOrDragging();
+    const auto centre = bounds.getCentre();
+    const float angle = start + pos * (end - start);
+    const float origin = bipolar ? (start + end) * 0.5f : start;
+    const float arcRadius = radius * 0.75f;
+    const juce::PathStrokeType stroke (sc (2.5f), juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
+    juce::Path arc;
+    arc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f, start, end, true);
+    g.setColour (ApolloTheme::graphiteEdge);
+    g.strokePath (arc, stroke);
+    if (std::abs (angle - origin) > 0.001f)
+    {
+        arc.clear();
+        arc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
+                           juce::jmin (origin, angle), juce::jmax (origin, angle), true);
+        g.setColour ((hover ? ApolloTheme::orangeBright : ApolloTheme::orange).withAlpha (dim ? 0.54f : 1.0f));
+        g.strokePath (arc, stroke);
+    }
+    drawKnobScale (g, centre, radius - sc (2), radius * 0.89f, start, end, bipolar, dim);
+    drawInstrumentKnob (g, centre, radius * 0.61f, angle, dim, slider.hasKeyboardFocus (true), hover);
 }
 
 void ApolloLookAndFeel::drawLinearSlider (Graphics& g, int x, int y, int width, int height,
                                          float pos, float minPos, float maxPos,
                                          juce::Slider::SliderStyle style, juce::Slider& slider)
 {
-    if (style != juce::Slider::LinearVertical)
+    if (style != juce::Slider::LinearHorizontal)
     {
         LookAndFeel_V4::drawLinearSlider (g, x, y, width, height, pos, minPos, maxPos, style, slider);
         return;
     }
-    const auto b = juce::Rectangle<int> (x, y, width, height).toFloat();
-    const float cx = b.getCentreX(), top = b.getY(), bottom = b.getBottom();
-    ApolloTheme::drawInsetWell (g, { cx - sc (3), top, sc (6), b.getHeight() }, sc (1));
-    g.setColour (ApolloTheme::orange.withAlpha (0.35f));
-    g.fillRect (juce::Rectangle<float> (cx - sc (1), pos, sc (2), bottom - pos));
-    for (int i = 0; i <= 8; ++i)
-    {
-        const float yy = top + b.getHeight() * (float) i / 8;
-        const float len = sc (i % 4 == 0 ? 12.0f : 6.0f);
-        g.setColour (ApolloTheme::textOnPanelDim.withAlpha (0.7f));
-        g.drawLine (cx - sc (14) - len, yy, cx - sc (14), yy, sc (0.8f));
-        g.drawLine (cx + sc (14), yy, cx + sc (14) + len, yy, sc (0.8f));
-    }
-    auto cap = juce::Rectangle<float> (cx - sc (25), pos - sc (12), sc (50), sc (24));
-    g.setColour (juce::Colours::black.withAlpha (0.25f));
-    g.fillRoundedRectangle (cap.translated (0, sc (2)), sc (2));
-    juce::ColourGradient finish (ApolloTheme::chassisMid, cap.getX(), cap.getY(),
-                                 ApolloTheme::chassisEdge, cap.getX(), cap.getBottom(), false);
-    g.setGradientFill (finish);
-    g.fillRoundedRectangle (cap, sc (2));
-    g.setColour (ApolloTheme::textOnChassis);
-    g.drawLine (cap.getX() + sc (6), pos, cap.getRight() - sc (6), pos, sc (1.4f));
+
+    const float cy = (float) y + (float) height * 0.5f;
+    ApolloTheme::drawInsetWell (g, { (float) x, cy - sc (3), (float) width, sc (6) }, sc (3));
+    g.setColour (ApolloTheme::orange);
+    g.fillRoundedRectangle ({ (float) x, cy - sc (2), juce::jmax (0.0f, pos - (float) x), sc (4) }, sc (2));
+    const juce::Rectangle<float> thumb (pos - sc (4), cy - sc (8), sc (8), sc (16));
+    g.setColour (slider.isMouseOverOrDragging() ? ApolloTheme::orangeBright : ApolloTheme::textOnPanel);
+    g.fillRoundedRectangle (thumb, sc (2));
     if (slider.hasKeyboardFocus (true))
-        drawFocusHalo (g, cap.expanded (sc (3)), sc (2));
+        drawFocusHalo (g, thumb.expanded (sc (3)), sc (3));
+}
+
+juce::Label* ApolloLookAndFeel::createSliderTextBox (juce::Slider& slider)
+{
+    auto* label = LookAndFeel_V4::createSliderTextBox (slider);
+    label->setFont (ApolloTheme::valueFont (sc (ApolloTheme::Metrics::controlValue)));
+    return label;
 }
 
 void ApolloLookAndFeel::drawFocusHalo (Graphics& g, juce::Rectangle<float> bounds, float corner)
@@ -160,16 +170,17 @@ void ApolloLookAndFeel::drawRocker (Graphics& g, juce::ToggleButton& button, boo
     const int count = feed ? 2 : 1;
     for (int i = 0; i < count; ++i)
     {
-        auto face = juce::Rectangle<float> (b.getX() + (float) i * b.getWidth() / count, b.getY(),
-                                      b.getWidth() / count, b.getHeight()).reduced (sc (1));
+        auto face = juce::Rectangle<float> (b.getX() + (float) i * b.getWidth() / (float) count, b.getY(),
+                                      b.getWidth() / (float) count, b.getHeight()).reduced (sc (1));
         const bool selected = feed ? (i == (on ? 1 : 0)) : on;
-        g.setColour (selected ? ApolloTheme::orange.withAlpha (dim ? 0.38f : 1.0f)
-                               : ApolloTheme::graphiteLight);
+        const bool hovered = highlighted && face.contains (button.getMouseXYRelative().toFloat());
+        g.setColour (selected ? (hovered ? ApolloTheme::orangeBright : ApolloTheme::orange).withAlpha (dim ? 0.38f : 1.0f)
+                              : hovered ? ApolloTheme::graphiteEdge : ApolloTheme::graphiteLight);
         g.fillRoundedRectangle (face, sc (2));
         g.setColour (ApolloTheme::graphiteEdge.withAlpha (highlighted ? 1.0f : 0.5f));
         g.drawRoundedRectangle (face, sc (2), sc (0.8f));
         g.setColour (selected && ! dim ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
-        g.setFont (ApolloTheme::font (sc (9.0f), ApolloTheme::FontWeight::Medium, 0.015f));
+        g.setFont (ApolloTheme::font (sc (10.5f), ApolloTheme::FontWeight::Medium, 0.015f));
         g.drawText (feed ? (i == 0 ? "OCT" : "OCT + DRY") : (on ? "ON" : "OFF"),
                     face, Justification::centred, false);
     }
@@ -182,33 +193,34 @@ void ApolloLookAndFeel::drawMomentary (Graphics& g, juce::ToggleButton& button, 
     // The light always follows the attached parameter state.
     const bool active = button.getToggleState();
     auto face = button.getLocalBounds().toFloat().reduced (sc (3));
-    g.setColour (ApolloTheme::graphiteDeep);
-    g.fillRoundedRectangle (face.translated (0, sc (2)), sc (3));
-    juce::ColourGradient finish (active ? ApolloTheme::orange : ApolloTheme::graphiteLight,
-                                 face.getX(), face.getY(),
-                                 active ? ApolloTheme::orangeDeep : ApolloTheme::graphiteDark,
-                                 face.getX(), face.getBottom(), false);
-    g.setGradientFill (finish);
+    g.setColour (active ? (highlighted ? ApolloTheme::orangeBright : ApolloTheme::orange)
+                        : ApolloTheme::graphiteLight);
     g.fillRoundedRectangle (face, sc (3));
     g.setColour (ApolloTheme::graphiteEdge.withAlpha (highlighted ? 1.0f : 0.6f));
     g.drawRoundedRectangle (face, sc (3), sc (1));
     g.setColour (active ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
     g.setFont (ApolloTheme::font (sc (15.0f), ApolloTheme::FontWeight::SemiBold, 0.08f));
-    g.drawText ("PERFORM", face, Justification::centred, false);
+    g.drawText (active ? "PERFORM  /  HELD" : "PERFORM", face, Justification::centred, false);
 }
 
 void ApolloLookAndFeel::drawBypass (Graphics& g, juce::ToggleButton& button, bool highlighted, bool down)
 {
-    juce::ignoreUnused (highlighted, down);
+    juce::ignoreUnused (down);
     const bool bypassed = button.getToggleState();
     auto face = button.getLocalBounds().toFloat().reduced (sc (2));
-    g.setColour (ApolloTheme::graphite);
-    g.fillRoundedRectangle (face, sc (2));
-    g.setColour (bypassed ? ApolloTheme::red : ApolloTheme::orange);
-    g.fillEllipse (face.getX() + sc (14), face.getCentreY() - sc (3), sc (6), sc (6));
-    g.setFont (ApolloTheme::font (sc (10.0f), ApolloTheme::FontWeight::Medium, 0.03f));
-    g.drawText (bypassed ? "BYPASSED" : "ACTIVE", face.reduced (sc (24), 0).translated (sc (7), 0),
-                Justification::centred, false);
+    g.setColour (highlighted ? ApolloTheme::graphiteLight : ApolloTheme::graphite);
+    g.fillRoundedRectangle (face, sc (3));
+    g.setColour (bypassed ? ApolloTheme::textOnPanelDim : ApolloTheme::orangeBright);
+    const juce::Rectangle<float> indicator (face.getX() + sc (12), face.getCentreY() - sc (3), sc (6), sc (6));
+    if (bypassed)
+        g.drawEllipse (indicator, sc (1));
+    else
+        g.fillEllipse (indicator);
+    g.setColour (ApolloTheme::textOnPanel);
+    g.setFont (ApolloTheme::labelFont (sc (11.0f)));
+    g.drawText (bypassed ? "BYPASS  /  ON" : "BYPASS  /  OFF",
+                face.withTrimmedLeft (sc (22)), Justification::centred);
+
 }
 
 void ApolloLookAndFeel::drawToggleButton (Graphics& g, juce::ToggleButton& b, bool hover, bool down)
@@ -218,7 +230,7 @@ void ApolloLookAndFeel::drawToggleButton (Graphics& g, juce::ToggleButton& b, bo
         case ApolloTheme::ButtonStyle::Rocker: drawRocker (g, b, hover, down); break;
         case ApolloTheme::ButtonStyle::Momentary: drawMomentary (g, b, hover, down); break;
         case ApolloTheme::ButtonStyle::Bypass: drawBypass (g, b, hover, down); break;
-        default: LookAndFeel_V4::drawToggleButton (g, b, hover, down); break;
+        case ApolloTheme::ButtonStyle::Plain: LookAndFeel_V4::drawToggleButton (g, b, hover, down); break;
     }
     if (b.hasKeyboardFocus (true))
         drawFocusHalo (g, b.getLocalBounds().toFloat().reduced (sc (0.5f)), sc (3));
@@ -236,37 +248,39 @@ void ApolloLookAndFeel::drawPushBank (Graphics& g, juce::Rectangle<float> b, juc
 {
     const int n = box.getNumItems();
     if (n == 0) return;
-    const bool vertical = (bool) box.getProperties()[ApolloTheme::verticalProperty];
-    const float gap = sc (4), w = vertical ? b.getWidth() : (b.getWidth() - gap * (n - 1)) / n;
-    const float h = vertical ? (b.getHeight() - gap * (n - 1)) / n : b.getHeight();
+    const float width = b.getWidth() / (float) n;
+    const auto mouse = box.getMouseXYRelative();
     for (int i = 0; i < n; ++i)
     {
-        const auto face = juce::Rectangle<float> (b.getX() + (vertical ? 0 : i * (w + gap)),
-                                            b.getY() + (vertical ? i * (h + gap) : 0), w, h).reduced (sc (1));
+        const auto slot = juce::Rectangle<float> (b.getX() + (float) i * width, b.getY(), width, b.getHeight());
+        const auto face = slot.reduced (sc (1.5f));
         const bool on = box.getSelectedItemIndex() == i;
-        g.setColour (on ? ApolloTheme::orange.withAlpha (dim ? 0.38f : 1.0f) : ApolloTheme::graphiteLight);
+        const bool hovered = slot.contains (mouse.toFloat());
+        g.setColour (on ? (hovered ? ApolloTheme::orangeBright : ApolloTheme::orange).withAlpha (dim ? 0.38f : 1.0f)
+                        : hovered ? ApolloTheme::graphiteEdge : ApolloTheme::graphiteLight);
         g.fillRoundedRectangle (face, sc (2));
         g.setColour (ApolloTheme::graphiteEdge.withAlpha (0.5f));
         g.drawRoundedRectangle (face, sc (2), sc (0.8f));
         g.setColour (on && ! dim ? ApolloTheme::graphiteDeep : ApolloTheme::textOnPanel);
-        g.setFont (ApolloTheme::font (sc (8.5f), ApolloTheme::FontWeight::Medium, 0.02f));
+        g.setFont (ApolloTheme::font (sc (10.5f), ApolloTheme::FontWeight::Medium, 0.02f));
         g.drawText (box.getItemText (i), face.reduced (sc (2)), Justification::centred, false);
     }
 }
 
 void ApolloLookAndFeel::drawLabel (Graphics& g, juce::Label& l)
 {
-    const bool display = (bool) l.getProperties()[ApolloTheme::displayProperty];
-    const bool caption = (bool) l.getProperties()[ApolloTheme::captionProperty];
-    if (! display && ! caption) { LookAndFeel_V4::drawLabel (g, l); return; }
-    g.setColour (display ? (isDimmed (l) ? ApolloTheme::textOnPanelDim : ApolloTheme::orange)
-                         : l.findColour (juce::Label::textColourId));
+    if (! (bool) l.getProperties()[ApolloTheme::captionProperty])
+    {
+        LookAndFeel_V4::drawLabel (g, l);
+        return;
+    }
+    g.setColour (l.findColour (juce::Label::textColourId));
     g.setFont (l.getFont());
     g.drawText (l.getText(), l.getLocalBounds().toFloat(), l.getJustificationType(), false);
 }
 void ApolloLookAndFeel::drawPopupMenuBackground (Graphics& g, int width, int height)
 {
-    g.fillAll (ApolloTheme::graphiteDark);
+    g.fillAll (ApolloTheme::graphite);
     g.setColour (ApolloTheme::graphiteEdge);
     g.drawRect (0, 0, width, height, 1);
 }

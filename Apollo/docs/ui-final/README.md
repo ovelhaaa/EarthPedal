@@ -1,3 +1,38 @@
+# Precision Space Instrument
+
+O Apollo usa o chassis off-white, os módulos grafite e o acento laranja do
+Driftbrigade. A referência foi a branch principal em `d10763c`: cabeçalho e
+organização do editor, escalas e arcos de valor de DriftKnob/DriftLookAndFeel,
+estrutura dos módulos de ParameterSection e modelo visual de MotionField.
+A implementação usa geometria vetorial no JUCE 8.0.0 e mantém a Montserrat
+embutida. O símbolo do cabeçalho remete à lente do HAL 9000, com vermelho
+reservado à marca. As quatro seções acompanham a ordem de leitura e de foco.
+
+O Space Field descreve uma resposta espacial paramétrica em tempo relativo.
+O início das reflexões acompanha Pre-delay, e Decay e Size controlam a extensão
+e a distribuição da cauda. Tone muda o detalhe, Diffusion muda a dispersão e
+a densidade, e Mod Rate e Mod Depth controlam o movimento. As oitavas aparecem
+como traços internos. Freeze sustenta o envelope e Bypass reduz o display à
+grade com estado explícito. O componente lê os valores atômicos da APVTS na
+thread da interface e atualiza a animação a 30 Hz quando visível.
+
+Os knobs usam o editor numérico do JUCE, com as mesmas unidades exibidas.
+Tone mostra percentuais assinados (negativo para high cut, zero para flat e
+positivo para low cut). Mod Rate mostra o multiplicador do tanque. Os bancos
+segmentados conservam os attachments existentes. O mix horizontal vai de DRY
+a WET. O tamanho base e mínimo é 900 × 620, com escala proporcional do editor.
+
+O relatório reúne os resultados e os [renders do editor JUCE](VALIDATION.md#renders-do-editor-juce).
+`ApolloTest --ui` gera a série completa em `ui-evidence/` no diretório de build.
+
+## Material histórico
+
+Os mockups SVG e os PNGs em `renders/` registram o milestone
+*2001 Retrofuturist Identity + Control Contract Freeze*.
+
+<details>
+<summary>Documentação da interface anterior</summary>
+
 # Apollo UI Final — identidade e contrato dos controles
 
 Milestone: **2001 Retrofuturist Identity + Control Contract Freeze**.
@@ -133,3 +168,5 @@ SVGs são demonstrações vetoriais, não screenshots. Regenerar:
 ApolloTest --ui produz PNGs via createComponentSnapshot do editor JUCE real.
 Inclui estados, tamanho mínimo/máximo e rasterização a 100%, 150% e 200%.
 Isso não equivale a alterar a escala global do Windows nem a testar em DAW.
+
+</details>

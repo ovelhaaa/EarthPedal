@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "ApolloLookAndFeel.h"
 #include "ApolloTheme.h"
+#include "ApolloSpaceField.h"
 #include "PluginProcessor.h"
 
 // Keeps the existing automatable boolean parameter, but makes a mouse/keyboard
@@ -58,11 +59,12 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void visibilityChanged() override;
+    void parentHierarchyChanged() override;
 
 private:
     void timerCallback() override;
     void updateStatePresentation();
-    void updateValueLabels();
     void applyFontScale (float scale);
 
     float getDesignScale() const;
@@ -71,19 +73,18 @@ private:
     ApolloAudioProcessor& audioProcessor;
     ApolloLookAndFeel customLookAndFeel;
 
-    // Non-interactive section captions on one shared instrument surface.
+    ApolloSpaceField spaceField;
     ApolloRackPanel reverbPanel      { "SPACE" };
-    ApolloRackPanel outputPanel      { "OUTPUT" };
+    ApolloRackPanel modulationPanel  { "MODULATION" };
     ApolloRackPanel octavePanel      { "OCTAVE" };
-    ApolloRackPanel performancePanel { "PERFORM" };
+    ApolloRackPanel performancePanel { "PERFORMANCE / OUTPUT" };
 
     juce::TooltipWindow tooltipWindow { this, 650 };
 
     juce::Slider faderMix;
     juce::Slider knobDecay, knobPredelay, knobDamp, knobModSpeed, knobModDepth, knobEq1, knobEq2;
     juce::Label lblDecay, lblPredelay, lblDamp, lblModSpeed, lblModDepth, lblEq1, lblEq2;
-    juce::Label valueDecay, valuePredelay, valueDamp, valueModSpeed, valueModDepth, valueEq1, valueEq2;
-    juce::Label lblToneHigh, lblToneFlat, lblToneLow, lblDry, lblWet;
+    juce::Label lblDry, lblWet, lblMix;
 
     ApolloSelector comboTimeScale, comboEffectMode, comboFootswitchMode;
     juce::Label lblTimeScale, lblEffectMode, lblFootswitchMode;

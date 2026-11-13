@@ -1,6 +1,8 @@
 #include "PluginEditor.h"
 
 #include <cmath>
+#include <locale>
+#include <sstream>
 
 namespace
 {
@@ -20,26 +22,36 @@ void styleCaption (juce::Label& label, const juce::String& caption, float size)
     label.getProperties().set (ApolloTheme::captionProperty, true);
 }
 
-void styleValue (juce::Label& label, float size)
+void styleSlider (juce::Slider& slider, const juce::String& name)
 {
-    label.setText ({}, juce::dontSendNotification);
-    label.setJustificationType (juce::Justification::centred);
-    label.setFont (ApolloTheme::valueFont (size));
-    label.setColour (juce::Label::textColourId, ApolloTheme::orange);
-    label.getProperties().set (ApolloTheme::displayProperty, true);
-}
-
-void styleKnob (juce::Slider& slider, juce::Label& caption, juce::Label& value,
-                const juce::String& name, float captionSize = ApolloTheme::Metrics::controlLabel,
-                float valueSize = ApolloTheme::Metrics::controlValue)
-{
-    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 72, 20);
     slider.setWantsKeyboardFocus (true);
     slider.setTitle (name);
-    slider.setDescription (name + " control. Use arrow keys for small changes; double click resets to the parameter default.");
-    styleCaption (caption, name, captionSize);
-    styleValue (value, valueSize);
+    slider.setDescription (name + " control. Use arrow keys to adjust, double click the control to reset,"
+                           " or click the value to type a new setting.");
+}
+
+void useDisplayUnits (juce::Slider& slider, double scale, double offset,
+                      int decimals, const juce::String& suffix)
+{
+    slider.textFromValueFunction = [=] (double value)
+    {
+        return juce::String (value * scale + offset, decimals) + suffix;
+    };
+    slider.valueFromTextFunction = [&slider, scale, offset, suffix] (const juce::String& text)
+    {
+        auto number = text.trim();
+        if (number.endsWithIgnoreCase (suffix.trimStart()))
+            number = number.dropLastCharacters (suffix.trimStart().length()).trimEnd();
+        number = number.replaceCharacter (',', '.');
+        std::istringstream input (number.toStdString());
+        input.imbue (std::locale::classic());
+        double value = 0.0;
+        if (! (input >> value) || ! input.eof() || ! std::isfinite (value))
+            return slider.getValue();
+        return (value - offset) / scale;
+    };
+    slider.updateText();
 }
 
 void styleRockToggle (juce::ToggleButton& button, const juce::String& name, const juce::String& tooltip,
@@ -133,7 +145,7 @@ void MomentaryGateButton::parentHierarchyChanged()
 
 //==============================================================================
 ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+    : AudioProcessorEditor (&p), audioProcessor (p), spaceField (p.apvts)
 {
     setSize (defaultEditorWidth, defaultEditorHeight);
     setResizable (true, true);
@@ -146,34 +158,35 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     setWantsKeyboardFocus (true);
     setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
     setTitle ("Apollo plugin editor");
-    setDescription ("Apollo plate reverb editor. Keyboard focus follows Space, Output, Octave and Perform.");
+    setDescription ("Apollo plate reverb editor. Keyboard focus follows the header, Space, Modulation, Octave and Performance.");
     setLookAndFeel (&customLookAndFeel);
 
-    // Decorative back plates go in first so they always sit behind the controls.
-    for (auto* panel : { &reverbPanel, &outputPanel, &octavePanel, &performancePanel })
+    addAndMakeVisible (spaceField);
+    for (auto* panel : { &reverbPanel, &modulationPanel, &octavePanel, &performancePanel })
         addAndMakeVisible (*panel);
 
-
-    auto addKnob = [this] (juce::Slider& knob, juce::Label& caption, juce::Label& value, const char* id,
+    auto addKnob = [this] (juce::Slider& knob, juce::Label& caption, const char* id,
                            const juce::String& name,
                            std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>& attachment)
     {
         addAndMakeVisible (knob);
         addAndMakeVisible (caption);
-        addAndMakeVisible (value);
-        styleKnob (knob, caption, value, name);
+        knob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+        knob.setMouseDragSensitivity (260);
+        styleSlider (knob, name);
+        styleCaption (caption, name, ApolloTheme::Metrics::controlLabel);
         attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (audioProcessor.apvts, id, knob);
         auto* parameter = audioProcessor.apvts.getParameter (id);
         knob.setDoubleClickReturnValue (true, parameter->convertFrom0to1 (parameter->getDefaultValue()));
     };
 
-    addKnob (knobPredelay, lblPredelay, valuePredelay, "predelay", "Pre-delay", attachPredelay);
-    addKnob (knobDecay, lblDecay, valueDecay, "decay", "Decay", attachDecay);
-    addKnob (knobDamp, lblDamp, valueDamp, "damp", "Tone", attachDamp);
-    addKnob (knobModSpeed, lblModSpeed, valueModSpeed, "modspeed", "Mod Rate", attachModSpeed);
-    addKnob (knobModDepth, lblModDepth, valueModDepth, "moddepth", "Mod Depth", attachModDepth);
-    addKnob (knobEq1, lblEq1, valueEq1, "eq1_gain", "Presence", attachEq1);
-    addKnob (knobEq2, lblEq2, valueEq2, "eq2_gain", "Body", attachEq2);
+    addKnob (knobPredelay, lblPredelay, "predelay", "Pre-delay", attachPredelay);
+    addKnob (knobDecay, lblDecay, "decay", "Decay", attachDecay);
+    addKnob (knobDamp, lblDamp, "damp", "Tone", attachDamp);
+    addKnob (knobModSpeed, lblModSpeed, "modspeed", "Mod Rate", attachModSpeed);
+    addKnob (knobModDepth, lblModDepth, "moddepth", "Mod Depth", attachModDepth);
+    addKnob (knobEq1, lblEq1, "eq1_gain", "Presence", attachEq1);
+    addKnob (knobEq2, lblEq2, "eq2_gain", "Body", attachEq2);
     knobPredelay.setTooltip ("Atrasa a entrada do reverb.");
     knobDecay.setTooltip ("Define quanto tempo o reverb sustenta.");
     knobDamp.setTooltip ("High Cut a esquerda; Low Cut a direita.");
@@ -183,14 +196,15 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     knobEq2.setTooltip ("Ajusta o shelf baixo da ramificacao de oitava.");
 
     knobDamp.getProperties().set (ApolloTheme::bipolarProperty, true);
-    addAndMakeVisible (lblToneHigh);
-    addAndMakeVisible (lblToneLow);
-    addAndMakeVisible (lblToneFlat);
-    styleCaption (lblToneHigh, "HI CUT", ApolloTheme::Metrics::microLabel);
-    styleCaption (lblToneFlat, "FLAT", ApolloTheme::Metrics::microLabel);
-    styleCaption (lblToneLow, "LO CUT", ApolloTheme::Metrics::microLabel);
-    lblToneHigh.setColour (juce::Label::textColourId, ApolloTheme::textOnPanelDim);
-    lblToneLow.setColour (juce::Label::textColourId, ApolloTheme::textOnPanelDim);
+    useDisplayUnits (knobPredelay, 1000.0, 0.0, 0, " ms");
+    useDisplayUnits (knobDecay, 100.0, 0.0, 0, "%");
+    useDisplayUnits (knobModSpeed, 15.0, 0.3, 2, "x");
+    useDisplayUnits (knobModDepth, 100.0, 0.0, 0, "%");
+    useDisplayUnits (knobEq1, 1.0, 0.0, 2, " dB");
+    useDisplayUnits (knobEq2, 1.0, 0.0, 2, " dB");
+    // Signed percentage keeps the neutral point editable and unambiguous.
+    useDisplayUnits (knobDamp, 200.0, -100.0, 0, "%");
+    knobDamp.setTooltip ("Negative: high cut. Zero: flat. Positive: low cut.");
 
     auto addChoice = [this] (ApolloSelector& combo, juce::Label& caption, const char* id, const juce::String& name,
                              const juce::StringArray& choices,
@@ -211,14 +225,12 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     addChoice (comboTimeScale, lblTimeScale, "time_scale", "Size", { "SMALL", "MEDIUM", "LARGE" }, attachTimeScale);
     addChoice (comboEffectMode, lblEffectMode, "effect_mode", "Mode", { "OFF", "UP", "DOWN", "UP+DOWN" }, attachEffectMode);
     addChoice (comboFootswitchMode, lblFootswitchMode, "footswitch_mode", "Action", { "FREEZE", "DRIVE", "OCTAVE" }, attachFootswitchMode);
-    for (auto* combo : { &comboTimeScale, &comboEffectMode, &comboFootswitchMode })
-        combo->getProperties().set (ApolloTheme::pushBankProperty, true);
     comboTimeScale.setTooltip ("Escolhe o tamanho do espaco.");
     comboEffectMode.setTooltip ("Escolhe Off, Up, Down ou Up + Down para a ramificacao de oitava.");
     comboFootswitchMode.setTooltip ("Select Freeze, Drive or Octave; hold Perform or automate the momentary gate.");
 
     addAndMakeVisible (lblInputDiffusion);
-    styleCaption (lblInputDiffusion, "Diffusion", 9.0f);
+    styleCaption (lblInputDiffusion, "Input Diffusion", ApolloTheme::Metrics::controlLabel);
     addAndMakeVisible (btnInputDiffusion);
     styleRockToggle (btnInputDiffusion, "Input Diffusion", "Espalha o sinal antes do plate.",
                      "Toggles input diffusion on or off.");
@@ -250,13 +262,13 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     attachBypass = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (audioProcessor.apvts, "bypass", btnBypass);
 
     addAndMakeVisible (faderMix);
-    faderMix.setSliderStyle (juce::Slider::LinearVertical);
-    faderMix.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    faderMix.setWantsKeyboardFocus (true);
+    faderMix.setSliderStyle (juce::Slider::LinearHorizontal);
+    styleSlider (faderMix, "Mix");
     faderMix.setTooltip ("Equilibra sinal direto e reverb.");
-    faderMix.setTitle ("Mix");
-    faderMix.setDescription ("Dry wet mix control. Use arrow keys for small changes; double click resets to the parameter default.");
     faderMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (audioProcessor.apvts, "mix", faderMix);
+    useDisplayUnits (faderMix, 100.0, 0.0, 0, "%");
+    addAndMakeVisible (lblMix);
+    styleCaption (lblMix, "Mix", ApolloTheme::Metrics::controlLabel);
     auto* mixParameter = audioProcessor.apvts.getParameter ("mix");
     faderMix.setDoubleClickReturnValue (true, mixParameter->convertFrom0to1 (mixParameter->getDefaultValue()));
 
@@ -265,19 +277,14 @@ ApolloAudioProcessorEditor::ApolloAudioProcessorEditor (ApolloAudioProcessor& p)
     addAndMakeVisible (lblWet);
     styleCaption (lblWet, "WET", 10.0f);
     int focusOrder = 1;
-    for (auto* component : { static_cast<juce::Component*> (&knobPredelay), static_cast<juce::Component*> (&knobDecay),
-                             static_cast<juce::Component*> (&knobDamp), static_cast<juce::Component*> (&knobModSpeed),
-                             static_cast<juce::Component*> (&knobModDepth), static_cast<juce::Component*> (&comboTimeScale),
-                             static_cast<juce::Component*> (&btnInputDiffusion), static_cast<juce::Component*> (&faderMix),
-                             static_cast<juce::Component*> (&comboEffectMode), static_cast<juce::Component*> (&btnOctaveDryMix),
-                             static_cast<juce::Component*> (&knobEq1), static_cast<juce::Component*> (&knobEq2),
-                             static_cast<juce::Component*> (&comboFootswitchMode), static_cast<juce::Component*> (&btnMomentaryEffect),
-                             static_cast<juce::Component*> (&btnBypass) })
+    for (juce::Component* component : std::initializer_list<juce::Component*> {
+             &btnBypass, &knobPredelay, &knobDecay, &knobDamp, &comboTimeScale, &btnInputDiffusion,
+             &knobModSpeed, &knobModDepth, &comboEffectMode, &btnOctaveDryMix, &knobEq1, &knobEq2,
+             &comboFootswitchMode, &btnMomentaryEffect, &faderMix })
         component->setExplicitFocusOrder (focusOrder++);
 
     resized(); // layout/font scale after all controls and attachments exist
     updateStatePresentation();
-    updateValueLabels();
     startTimerHz (12);
 }
 
@@ -306,26 +313,29 @@ juce::Rectangle<float> ApolloAudioProcessorEditor::scaled (float x, float y, flo
 void ApolloAudioProcessorEditor::applyFontScale (float s)
 {
     const auto caption = [s] (juce::Label& l) { l.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::controlLabel * s)); };
-    const auto value   = [s] (juce::Label& l) { l.setFont (ApolloTheme::valueFont (ApolloTheme::Metrics::controlValue * s)); };
 
-    caption (lblPredelay); caption (lblDecay); caption (lblDamp);
-    caption (lblModSpeed); caption (lblModDepth); caption (lblEq1); caption (lblEq2);
-    caption (lblTimeScale); caption (lblEffectMode); caption (lblFootswitchMode);
-    caption (lblInputDiffusion); caption (lblOctaveDryMix);
-    caption (lblDry); caption (lblWet);
+    for (auto* label : { &lblPredelay, &lblDecay, &lblDamp, &lblModSpeed, &lblModDepth, &lblEq1, &lblEq2,
+                         &lblTimeScale, &lblEffectMode, &lblFootswitchMode, &lblInputDiffusion, &lblOctaveDryMix,
+                         &lblMix, &lblDry, &lblWet })
+        caption (*label);
+}
 
-    value (valuePredelay); value (valueDecay); value (valueDamp);
-    value (valueModSpeed); value (valueModDepth); value (valueEq1); value (valueEq2);
+void ApolloAudioProcessorEditor::visibilityChanged()
+{
+    spaceField.updateTimer();
+    if (! isVisible())
+        btnMomentaryEffect.releaseLocalGate();
+}
 
-    lblToneHigh.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
-    lblToneLow.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
-    lblToneFlat.setFont (ApolloTheme::labelFont (ApolloTheme::Metrics::microLabel * s));
+void ApolloAudioProcessorEditor::parentHierarchyChanged()
+{
+    spaceField.updateTimer();
 }
 
 void ApolloAudioProcessorEditor::timerCallback()
 {
-    updateStatePresentation();
-    updateValueLabels();
+    if (isVisible())
+        updateStatePresentation();
 }
 
 //==============================================================================
@@ -337,13 +347,12 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
     const bool bypassed = audioProcessor.apvts.getRawParameterValue ("bypass")->load() > 0.5f;
     const bool octaveOff = mode == 0 || (action == 2 && ! perform);
     reverbPanel.setDimmed (bypassed);
+    modulationPanel.setDimmed (bypassed);
     octavePanel.setDimmed (octaveOff || bypassed);
-    for (auto* component : { static_cast<juce::Component*> (&knobEq1), static_cast<juce::Component*> (&knobEq2),
-                             static_cast<juce::Component*> (&valueEq1), static_cast<juce::Component*> (&valueEq2),
-                             static_cast<juce::Component*> (&btnOctaveDryMix) })
+    for (juce::Component* component : std::initializer_list<juce::Component*> { &knobEq1, &knobEq2, &btnOctaveDryMix })
     {
-        component->getProperties().set (ApolloTheme::dimProperty, octaveOff || bypassed);
-        component->repaint();
+        if (component->getProperties().set (ApolloTheme::dimProperty, octaveOff || bypassed))
+            component->repaint();
     }
     btnBypass.setDescription (bypassed ? "Bypassed. Smoothed dry path; controls remain editable." : "Active. Apollo is processing.");
     btnMomentaryEffect.setDescription (juce::String ("Momentary gate for ")
@@ -362,47 +371,39 @@ void ApolloAudioProcessorEditor::updateStatePresentation()
     knobEq2.setTooltip (knobEq2.getDescription());
 }
 
-void ApolloAudioProcessorEditor::updateValueLabels()
-{
-    auto percent = [] (juce::Slider& s) { return juce::String (juce::roundToInt (s.getValue() * 100.0)) + "%"; };
-
-    valuePredelay.setText (juce::String (juce::roundToInt (knobPredelay.getValue() * 1000.0)) + " ms", juce::dontSendNotification);
-    valueDecay.setText (percent (knobDecay), juce::dontSendNotification);
-    const double tone = knobDamp.getValue();
-    const auto cut = juce::String (juce::roundToInt (std::abs (tone - 0.5) * 200.0)) + "%";
-    const auto toneText = tone == 0.5 ? juce::String ("FLAT") : juce::String (tone < 0.5 ? "HI " : "LO ") + cut;
-    valueDamp.setText (toneText, juce::dontSendNotification);
-    knobDamp.setDescription ("Tone: " + toneText + ". Left: high cut; centre: neutral; right: low cut. Double click resets to Flat.");
-    knobDamp.setTooltip (knobDamp.getDescription());
-    valueModSpeed.setText (juce::String (0.3 + 15.0 * knobModSpeed.getValue(), 2) + "x", juce::dontSendNotification);
-    valueModDepth.setText (percent (knobModDepth), juce::dontSendNotification);
-    valueEq1.setText (juce::String (knobEq1.getValue(), 1) + " dB", juce::dontSendNotification);
-    valueEq2.setText (juce::String (knobEq2.getValue(), 1) + " dB", juce::dontSendNotification);
-}
-
-//==============================================================================
 void ApolloAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (ApolloTheme::chassisMid);
-    g.setColour (ApolloTheme::chassisEdge);
-    g.drawRect (getLocalBounds(), 1);
+    using namespace ApolloTheme;
+    g.fillAll (chassis);
     const float s = getDesignScale();
-    g.setColour (ApolloTheme::textOnChassis);
-    g.setFont (ApolloTheme::font (39.0f * s, ApolloTheme::FontWeight::Bold, 0.12f));
-    g.drawText ("APOLLO", scaled (36, 18, 400, 48), juce::Justification::centredLeft, false);
-    g.setColour (ApolloTheme::textOnChassisSoft);
-    g.setFont (ApolloTheme::font (9.0f * s, ApolloTheme::FontWeight::Medium, 0.14f));
-    g.drawText ("STEREO SPACE PROCESSOR", scaled (39, 67, 400, 18), juce::Justification::centredLeft, false);
-    g.setColour (ApolloTheme::orange.withAlpha (0.75f));
-    g.fillRect (scaled (38, 91, 78, 2));
 
-    g.setColour (ApolloTheme::graphite);
-    g.fillRoundedRectangle (scaled (24, 112, 852, 484), 3.0f * s);
-    g.setColour (ApolloTheme::graphiteEdge.withAlpha (0.65f));
-    g.drawLine (scaled (24, 392, 0, 0).getX(), scaled (24, 392, 0, 0).getY(),
-                scaled (876, 392, 0, 0).getX(), scaled (876, 392, 0, 0).getY(), s);
-    g.drawLine (scaled (636, 112, 0, 0).getX(), scaled (636, 112, 0, 0).getY(),
-                scaled (636, 596, 0, 0).getX(), scaled (636, 596, 0, 0).getY(), s);
+    const auto symbol = scaled (24, 22, 44, 44);
+    g.setColour (graphite);
+    g.fillRoundedRectangle (symbol, 4.0f * s);
+
+    const auto bezel = symbol.reduced (6.0f * s);
+    g.setColour (graphiteEdge);
+    g.fillEllipse (bezel);
+    g.setColour (graphiteDeep);
+    g.fillEllipse (bezel.reduced (1.5f * s));
+
+    const auto lens = bezel.reduced (5.0f * s);
+    const auto centre = lens.getCentre();
+    juce::ColourGradient lensLight (logoLensCore, centre, logoLensRim, centre.withX (lens.getRight()), true);
+    lensLight.addColour (0.38, logoLensRed);
+    g.setGradientFill (lensLight);
+    g.fillEllipse (lens);
+
+    g.setColour (textOnChassis);
+    g.setFont (font (37.0f * s, FontWeight::Bold, 0.10f));
+    g.drawText ("APOLLO", scaled (80, 14, 320, 39), juce::Justification::centredLeft);
+    g.setColour (textOnChassisSoft);
+    g.setFont (headingFont (11.0f * s));
+    g.drawText ("STEREO SPACE PROCESSOR", scaled (82, 54, 380, 15), juce::Justification::centredLeft);
+    g.setColour (chassisEdge);
+    g.fillRect (scaled (24, 80, 852, 1));
+    g.setColour (orange);
+    g.fillRect (scaled (24, 79, 44, 3));
 }
 
 void ApolloAudioProcessorEditor::resized()
@@ -416,48 +417,50 @@ void ApolloAudioProcessorEditor::resized()
     const float s = getDesignScale();
     customLookAndFeel.setUiScale (s);
     applyFontScale (s);
+    for (auto* panel : { &reverbPanel, &modulationPanel, &octavePanel, &performancePanel })
+        panel->setScale (s);
+
     const auto R = [this] (float x, float y, float w, float h) { return scaled (x, y, w, h).toNearestInt(); };
-    reverbPanel.setBounds (R (24, 112, 612, 280));
-    outputPanel.setBounds (R (636, 112, 240, 280));
-    octavePanel.setBounds (R (24, 392, 612, 204));
-    performancePanel.setBounds (R (636, 392, 240, 204));
-    btnBypass.setBounds (R (710, 40, 166, 38));
+    btnBypass.setBounds (R (726, 25, 150, 36));
+    spaceField.setBounds (R (24, 93, 852, 183));
+    reverbPanel.setBounds (R (24, 288, 548, 164));
+    modulationPanel.setBounds (R (584, 288, 292, 164));
+    octavePanel.setBounds (R (24, 464, 480, 132));
+    performancePanel.setBounds (R (516, 464, 360, 132));
 
-    const auto knob = [&R] (juce::Slider& control, juce::Label& caption, juce::Label& value,
-                            float cx, float y, float diameter)
+    const auto knob = [&] (juce::Slider& control, juce::Label& caption, float cx, float y, float diameter)
     {
-        caption.setBounds (R (cx - 58, y - 23, 116, 18));
-        control.setBounds (R (cx - diameter / 2, y, diameter, diameter));
-        value.setBounds (R (cx - 58, y + diameter + 3, 116, 18));
+        caption.setBounds (R (cx - 45, y - 19, 90, 17));
+        control.setTextBoxStyle (juce::Slider::TextBoxBelow, false, juce::roundToInt (74 * s),
+                                 juce::roundToInt (20 * s));
+        control.setBounds (R (cx - 44, y, 88, diameter + 20));
     };
-    knob (knobPredelay, lblPredelay, valuePredelay, 112, 182, 92);
-    knob (knobDecay, lblDecay, valueDecay, 258, 170, 116);
-    knob (knobDamp, lblDamp, valueDamp, 404, 182, 92);
-    lblToneHigh.setBounds (R (324, 307, 64, 12));
-    lblToneFlat.setBounds (R (388, 307, 32, 12));
-    lblToneLow.setBounds (R (420, 307, 64, 12));
-    // Smaller secondary modulation controls share a disciplined right column.
-    knob (knobModSpeed, lblModSpeed, valueModSpeed, 560, 162, 68);
-    knob (knobModDepth, lblModDepth, valueModDepth, 560, 286, 68);
 
-    lblTimeScale.setBounds (R (64, 340, 40, 28));
-    comboTimeScale.setBounds (R (112, 340, 248, 28));
-    lblInputDiffusion.setBounds (R (374, 340, 86, 28));
-    btnInputDiffusion.setBounds (R (464, 340, 38, 28));
+    knob (knobPredelay, lblPredelay, 84, 345, 73);
+    knob (knobDecay, lblDecay, 179, 342, 79);
+    knob (knobDamp, lblDamp, 274, 345, 73);
+    lblTimeScale.setBounds (R (333, 324, 223, 17));
+    comboTimeScale.setBounds (R (333, 344, 223, 29));
+    lblInputDiffusion.setBounds (R (333, 387, 150, 29));
+    btnInputDiffusion.setBounds (R (487, 387, 69, 29));
 
-    lblWet.setBounds (R (698, 153, 116, 16));
-    faderMix.setBounds (R (698, 179, 116, 154));
-    lblDry.setBounds (R (698, 352, 116, 16));
+    knob (knobModSpeed, lblModSpeed, 657, 345, 73);
+    knob (knobModDepth, lblModDepth, 803, 345, 73);
 
-    lblEffectMode.setBounds (R (48, 442, 264, 16));
-    comboEffectMode.setBounds (R (48, 466, 264, 34));
-    lblOctaveDryMix.setBounds (R (48, 517, 264, 16));
-    btnOctaveDryMix.setBounds (R (48, 541, 264, 32));
-    knob (knobEq1, lblEq1, valueEq1, 416, 464, 86);
-    knob (knobEq2, lblEq2, valueEq2, 556, 464, 86);
+    lblEffectMode.setBounds (R (38, 498, 222, 16));
+    comboEffectMode.setBounds (R (38, 515, 222, 25));
+    lblOctaveDryMix.setBounds (R (38, 543, 222, 16));
+    btnOctaveDryMix.setBounds (R (38, 560, 222, 25));
+    knob (knobEq1, lblEq1, 324, 520, 51);
+    knob (knobEq2, lblEq2, 435, 520, 51);
 
-    // The section title already names the action; no duplicate caption.
-    lblFootswitchMode.setVisible (false);
-    comboFootswitchMode.setBounds (R (660, 444, 192, 32));
-    btnMomentaryEffect.setBounds (R (660, 497, 192, 76));
+    lblFootswitchMode.setBounds (R (530, 498, 168, 16));
+    comboFootswitchMode.setBounds (R (530, 515, 168, 26));
+    btnMomentaryEffect.setBounds (R (530, 548, 168, 37));
+    lblMix.setBounds (R (710, 498, 150, 16));
+    lblDry.setBounds (R (710, 515, 42, 16));
+    lblWet.setBounds (R (818, 515, 42, 16));
+    faderMix.setTextBoxStyle (juce::Slider::TextBoxBelow, false, juce::roundToInt (68 * s),
+                              juce::roundToInt (20 * s));
+    faderMix.setBounds (R (720, 533, 130, 49));
 }

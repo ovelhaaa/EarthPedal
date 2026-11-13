@@ -2,6 +2,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <stdexcept>
 
@@ -59,19 +60,113 @@ void set (ApolloAudioProcessor& p, const char* id, float value)
 }
 void checkBounds (juce::Component& editor)
 {
-    for (auto* c : editor.getChildren())
-        if (c->isVisible() && c->getWantsKeyboardFocus())
-            require (editor.getLocalBounds().contains (c->getBounds()) && ! c->getBounds().isEmpty(),
-                     "Control clipped or empty: " + c->getTitle());
+    for (auto* component : editor.getChildren())
+    {
+        if (! component->isVisible())
+            continue;
+        require (editor.getLocalBounds().contains (component->getBounds()) && ! component->getBounds().isEmpty(),
+                 "Visible component clipped or empty: " + component->getTitle());
+
+        if (component->getWantsKeyboardFocus())
+            for (auto* other : editor.getChildren())
+                if (other != component && other->isVisible() && other->getWantsKeyboardFocus())
+                    require (! component->getBounds().intersects (other->getBounds()),
+                             "Overlapping controls: " + component->getTitle() + " and " + other->getTitle());
+    }
 }
+std::uint64_t fieldFingerprint (juce::Component& field)
+{
+    const auto bounds = field.getLocalBounds().withTrimmedTop (36).withTrimmedBottom (26);
+    const auto image = field.createComponentSnapshot (bounds);
+    require (image.isValid(), "Invalid Space Field snapshot");
+    const juce::Image::BitmapData pixels (image, juce::Image::BitmapData::readOnly);
+    std::uint64_t hash = 14695981039346656037ull;
+    for (int y = 0; y < image.getHeight(); ++y)
+        for (int x = 0; x < image.getWidth(); ++x)
+            hash = (hash ^ pixels.getPixelColour (x, y).getARGB()) * 1099511628211ull;
+    return hash;
+}
+
 void snapshot (juce::Component& editor, const juce::File& directory, const juce::String& name, float scale)
 {
     auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, scale);
     require (image.isValid(), "Invalid editor snapshot");
-    auto stream = directory.getChildFile (name + ".png").createOutputStream();
+    const auto file = directory.getChildFile (name + ".png");
+    require (file.deleteFile(), "Cannot replace snapshot " + name);
+    auto stream = file.createOutputStream();
     juce::PNGImageFormat png;
     require (stream != nullptr && png.writeImageToStream (image, *stream), "Cannot write snapshot " + name);
 }
+void checkSpaceField (ApolloAudioProcessor& processor, juce::Component& editor, const juce::File& output)
+{
+    auto* field = control (editor, "Space Field");
+    require (dynamic_cast<ApolloSpaceField*> (field) != nullptr && field->isVisible()
+             && ! field->getWantsKeyboardFocus(), "Space Field missing or keyboard-focusable");
+
+    // A peer-free editor has a stationary display, so pixel differences here
+    // isolate APVTS changes from time-dependent modulation.
+    set (processor, "moddepth", 0);
+    const auto baseline = fieldFingerprint (*field);
+    juce::MemoryBlock state;
+    processor.getStateInformation (state);
+
+    struct FieldCase { const char* id; float first, second; const char* firstName; const char* secondName; };
+    for (const auto& test : { FieldCase { "predelay", 0, 1, "predelay-min", "predelay-max" },
+                              FieldCase { "decay", 0, 1, "decay-min", "decay-max" },
+                              FieldCase { "time_scale", 0, 2, nullptr, nullptr },
+                              FieldCase { "damp", 0, 1, nullptr, nullptr },
+                              FieldCase { "input_diffusion", 0, 1, nullptr, nullptr },
+                              FieldCase { "moddepth", 0, 0.85f, nullptr, "modulation-active" },
+                              FieldCase { "effect_mode", 0, 3, nullptr, "octave-active" },
+                              FieldCase { "momentary_effect", 0, 1, nullptr, "freeze-active" },
+                              FieldCase { "bypass", 0, 1, nullptr, nullptr } })
+    {
+        set (processor, test.id, test.first);
+        if (test.firstName != nullptr)
+        {
+            flush();
+            snapshot (editor, output, test.firstName, 1);
+        }
+        const auto before = fieldFingerprint (*field);
+        set (processor, test.id, test.second);
+        require (fieldFingerprint (*field) != before,
+                 "Space Field did not respond to " + juce::String (test.id));
+        if (test.secondName != nullptr)
+        {
+            flush();
+            snapshot (editor, output, test.secondName, 1);
+        }
+        processor.setStateInformation (state.getData(), (int) state.getSize());
+        require (fieldFingerprint (*field) == baseline, "Space Field did not follow preset recall");
+    }
+
+    set (processor, "effect_mode", 3);
+    set (processor, "footswitch_mode", 2);
+    require (fieldFingerprint (*field) == baseline, "Octave trace visible with Perform gate closed");
+    set (processor, "momentary_effect", 1);
+    require (fieldFingerprint (*field) != baseline, "Perform gate did not reveal octave traces");
+    processor.setStateInformation (state.getData(), (int) state.getSize());
+
+    // Attach a peer to exercise the same timer path the plug-in uses in a host.
+    editor.addToDesktop (juce::ComponentPeer::windowIsTemporary);
+    require (field->isShowing(), "Space Field did not become visible with the editor peer");
+    set (processor, "moddepth", 0.85f);
+    flush();
+    const auto moving = fieldFingerprint (*field);
+    flush();
+    require (fieldFingerprint (*field) != moving, "Space Field animation did not advance");
+    editor.setVisible (false);
+    const auto hidden = fieldFingerprint (*field);
+    flush();
+    require (fieldFingerprint (*field) == hidden, "Space Field advanced while hidden");
+    editor.setVisible (true);
+    flush();
+    require (fieldFingerprint (*field) != hidden, "Space Field did not resume after showing");
+    editor.removeFromDesktop();
+    processor.setStateInformation (state.getData(), (int) state.getSize());
+    std::puts ("PASS: Space Field geometry, preset recall, octave gate and animation visibility");
+}
+
 }
 
 void runInterfaceTests (const juce::File& output)
@@ -187,6 +282,20 @@ void runInterfaceTests (const juce::File& output)
     flush();
     std::puts ("PASS: XML/APVTS recall for all 15 parameters");
 
+    auto* rate = dynamic_cast<juce::Slider*> (control (*editor, "Mod Rate"));
+    auto* tone = dynamic_cast<juce::Slider*> (control (*editor, "Tone"));
+    require (rate->getTextFromValue (1.0) == "15.30x" && tone->getTextFromValue (0.5) == "0%",
+             "Display units disagree with APVTS");
+    rate->showTextBox();
+    auto* valueBox = dynamic_cast<juce::Label*> (rate->getChildComponent (0));
+    require (valueBox != nullptr && valueBox->getCurrentTextEditor() != nullptr, "Numeric edit did not open");
+    valueBox->getCurrentTextEditor()->setText ("7.80x");
+    rate->hideTextBox (false);
+    require (std::abs (processor.apvts.getRawParameterValue ("modspeed")->load() - 0.5f) < 1.0e-5f,
+             "Editing the displayed multiplier did not update APVTS");
+    set (processor, "modspeed", 0.0466667f);
+    flush();
+
     auto* feed = dynamic_cast<ReverbFeedButton*> (control (*editor, "Reverb Feed"));
     feed->mouseDown (event (*feed, true));
     feed->mouseUp (event (*feed, false));
@@ -240,6 +349,7 @@ void runInterfaceTests (const juce::File& output)
     editor->setSize (900, 620);
     for (float scale : { 1.0f, 1.5f, 2.0f })
         snapshot (*editor, output, "default-" + juce::String (juce::roundToInt (scale * 100)), scale);
+    checkSpaceField (processor, *editor, output);
     for (int size = 0; size < 3; ++size)
     {
         set (processor, "time_scale", (float) size); flush();

@@ -7,37 +7,29 @@ namespace ApolloTheme
     namespace Metrics
     {
         inline constexpr float sectionHeading = 11.0f;
-        inline constexpr float controlLabel = 9.5f;
-        inline constexpr float controlValue = 9.5f;
-        inline constexpr float microLabel = 7.0f;
-        inline constexpr float cornerRadius = 2.0f;
-        inline constexpr float hairline = 0.8f;
+        inline constexpr float controlLabel = 11.5f;
+        inline constexpr float controlValue = 12.0f;
     }
-    inline const juce::Colour chassisMid        { 0xffeee9dd };
-    inline const juce::Colour chassisEdge       { 0xffb9b4a8 };
-    inline const juce::Colour graphiteLight     { 0xff343638 };
-    inline const juce::Colour graphite          { 0xff222426 };
-    inline const juce::Colour graphiteDark      { 0xff191b1d };
-    inline const juce::Colour graphiteDeep      { 0xff101214 };
-    inline const juce::Colour graphiteEdge      { 0xff4b4c4b };
-    inline const juce::Colour plateBlack        { 0xff101214 };
-    inline const juce::Colour textOnPanel       { 0xffeee9dd };
-    inline const juce::Colour textOnPanelDim    { 0xffb3afa5 };
+    inline const juce::Colour chassis           { 0xfff0ede6 };
+    inline const juce::Colour chassisMid        { 0xffe6e2d8 };
+    inline const juce::Colour chassisEdge       { 0xffb9b7b0 };
+    inline const juce::Colour graphiteLight     { 0xff333639 };
+    inline const juce::Colour graphite          { 0xff292b2d };
+    inline const juce::Colour graphiteDeep      { 0xff17191b };
+    inline const juce::Colour graphiteEdge      { 0xff55585a };
+    inline const juce::Colour textOnPanel       { 0xfff3f0e9 };
+    inline const juce::Colour textOnPanelDim    { 0xffb8b8b6 };
     inline const juce::Colour textOnChassis     { 0xff252729 };
-    inline const juce::Colour textOnChassisSoft { 0xff696960 };
-    inline const juce::Colour orange            { 0xffefa34b };
-    inline const juce::Colour orangeDeep        { 0xffbd7d35 };
-    inline const juce::Colour red               { 0xffdc6554 };
-    inline const juce::Colour cyan              { 0xff85bec5 };
-    inline const juce::Colour lampOff           { 0xff474640 };
-    inline const juce::Colour knobPointer       { 0xffeee9dd };
+    inline const juce::Colour textOnChassisSoft { 0xff56585a };
+    inline const juce::Colour orange            { 0xfff36b2b };
+    inline const juce::Colour orangeBright      { 0xfff6824b };
+    inline const juce::Colour logoLensRim       { 0xff561e1a };
+    inline const juce::Colour logoLensRed       { 0xffdf301f };
+    inline const juce::Colour logoLensCore      { 0xffffa066 };
     inline constexpr int designWidth = 900, designHeight = 620;
     inline const char* const styleProperty    = "apolloStyle";
     inline const char* const dimProperty      = "apolloDim";
-    inline const char* const displayProperty  = "apolloDisplay";
     inline const char* const captionProperty  = "apolloCaption";
-    inline const char* const verticalProperty = "apolloVertical";
-    inline const char* const pushBankProperty = "apolloPushBank";
     inline const char* const bipolarProperty  = "apolloBipolar";
     inline const char* const feedProperty     = "apolloFeed";
     enum class ButtonStyle { Rocker = 0, Momentary, Bypass, Plain };
@@ -48,35 +40,37 @@ namespace ApolloTheme
     juce::Font valueFont (float size);
     juce::String fontFamily();
     juce::Typeface::Ptr embeddedTypeface (FontWeight weight);
-    void drawInsetWell (juce::Graphics&, juce::Rectangle<float>, float corner, float depth = 1.0f);
+    void drawInsetWell (juce::Graphics&, juce::Rectangle<float>, float corner);
 }
 
-// Transparent functional regions on the editor's shared instrument surface.
+// Section background and title behind the attached controls.
 class ApolloRackPanel : public juce::Component
 {
 public:
     explicit ApolloRackPanel (juce::String title);
     void setDimmed (bool);
+    void setScale (float value) { scale = value; }
     void paint (juce::Graphics&) override;
 private:
     juce::String title;
     bool dimmed = false;
+    float scale = 1.0f;
 };
 
 // Retains the stock ComboBox attachment, keyboard and accessibility contract.
 class ApolloSelector : public juce::ComboBox
 {
 public:
+    void mouseEnter (const juce::MouseEvent&) override { repaint(); }
+    void mouseMove (const juce::MouseEvent&) override { repaint(); }
+    void mouseExit (const juce::MouseEvent&) override { repaint(); }
     void mouseDown (const juce::MouseEvent& event) override
     {
         if (! isEnabled() || ! event.mods.isLeftButtonDown() || getNumItems() == 0)
             return;
         grabKeyboardFocus();
-        const bool vertical = (bool) getProperties()[ApolloTheme::verticalProperty];
-        const int position = vertical ? event.y : event.x;
-        const int extent = vertical ? getHeight() : getWidth();
         setSelectedItemIndex (juce::jlimit (0, getNumItems() - 1,
-                              position * getNumItems() / juce::jmax (1, extent)), juce::sendNotificationSync);
+                              event.x * getNumItems() / juce::jmax (1, getWidth())), juce::sendNotificationSync);
     }
     void mouseDoubleClick (const juce::MouseEvent&) override
     {

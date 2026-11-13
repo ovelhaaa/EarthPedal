@@ -67,6 +67,7 @@ target_sources(Apollo
         Source/PluginEditor.cpp
         Source/ApolloLookAndFeel.cpp
         Source/ApolloTheme.cpp
+        Source/ApolloSpaceField.cpp
         ${EARTH_CORE_SOURCES}
 )
 
@@ -109,7 +110,7 @@ target_include_directories(Apollo
 )
 
 juce_add_console_app(ApolloTest)
-target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/test_ui.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp ${EARTH_CORE_SOURCES})
+target_sources(ApolloTest PRIVATE Source/test_dsp.cpp Source/test_ui.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp Source/ApolloLookAndFeel.cpp Source/ApolloTheme.cpp Source/ApolloSpaceField.cpp ${EARTH_CORE_SOURCES})
 target_include_directories(ApolloTest PRIVATE Source "${EARTH_SHARED_DIR}" Source/DSP)
 target_link_libraries(ApolloTest PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_audio_processors ApolloFonts juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 target_compile_features(ApolloTest PUBLIC cxx_std_20)

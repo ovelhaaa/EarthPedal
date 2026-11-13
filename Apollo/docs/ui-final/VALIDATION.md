@@ -1,3 +1,54 @@
+# Validação do redesign — 13/11/2026
+
+Windows x64, Clang 19.1/MinGW, CMake 4.1 e JUCE 8.0.0.
+
+| Verificação | Resultado |
+|---|---|
+| VST3 Release | Compilado. O helper do JUCE carregou o módulo e gerou moduleinfo.json. |
+| Standalone Release | Compilado. O processo abriu a janela Apollo. |
+| CTest do Apollo | 2/2. `apollo_dsp` em 44,1/48/96 kHz e `apollo_ui_contract`. |
+| CTest do core | 2/2. `golden` e `damp_history`, com os arquivos de referência originais. |
+| Contrato de interface | 15 parâmetros, attachments nos dois sentidos, XML atual e legado, setas, reset, edição do multiplicador, polaridade de Feed e ciclo de Perform. |
+| Space Field | Mudanças de geometria por automação, retorno ao estado anterior via recall, visibilidade das oitavas via gate, animação e pausa/retomada ao ocultar e exibir. |
+| Resize e rasterização | Limites de 900 × 620 e 1400 × 964, verificação de contenção e sobreposição, e renders a 100%, 150% e 200%. |
+
+O build local usou um header externo ao repositório com operadores para enums
+Direct2D/DirectWrite e a especialização de UUID exigida pelo MinGW. O JUCE
+continuou em 8.0.0. Os quatro TTFs foram obtidos da tag Montserrat v7.222
+e fornecidos via `FETCHCONTENT_SOURCE_DIR_MONTSERRAT_FONTS`.
+
+## Renders do editor JUCE
+
+Os PNGs abaixo são snapshots do editor compilado, gerados com
+`createComponentSnapshot` por `ApolloTest --ui`.
+
+| Estado | Evidência |
+|---|---|
+| Default | [100%](precision-space-renders/default-100.png) · [150%](precision-space-renders/default-150.png) · [200%](precision-space-renders/default-200.png) |
+| Decay | [Mínimo](precision-space-renders/decay-min.png) · [Máximo](precision-space-renders/decay-max.png) |
+| Pre-delay | [Mínimo](precision-space-renders/predelay-min.png) · [Máximo](precision-space-renders/predelay-max.png) |
+| Modulação e oitavas | [Modulação ativa](precision-space-renders/modulation-active.png) · [Oitavas ativas](precision-space-renders/octave-active.png) |
+| Performance e bypass | [Freeze](precision-space-renders/freeze-active.png) · [Bypass](precision-space-renders/bypass.png) |
+| Resize | [Mínimo](precision-space-renders/minimum.png) · [Máximo](precision-space-renders/maximum.png) |
+
+O teste completo gera 30 PNGs em `ui-evidence/` dentro do build. A validação
+local cobriu a automação via APVTS e os componentes JUCE. DAW externa, AU/macOS,
+leitor de tela e escala global do Windows ficaram fora da execução.
+
+## Reprodução
+
+Com o build do Apollo configurado:
+
+    cmake --build <build-apollo> --config Release --target ApolloTest Apollo_Standalone Apollo_VST3
+    ctest --test-dir <build-apollo> -C Release --output-on-failure
+    cmake -S shared -B <build-core>
+    cmake --build <build-core> --config Release
+    ctest --test-dir <build-core> -C Release --output-on-failure
+
+<details>
+<summary>Validação histórica da interface anterior</summary>
+
+
 # Verificação final — Apollo UI Final
 
 Data: 01/10/2026. Host Windows, MinGW-w64 GCC 14.2 / Clang 19.1.
@@ -126,3 +177,5 @@ APVTS e controles JUCE reais. O helper VST3 carregou o binário, mas isso
 não substitui uma sessão de áudio em DAW.
 
 Os SVGs são demonstrações vetoriais e estão separados dos PNGs reais.
+
+</details>
